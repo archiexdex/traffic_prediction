@@ -11,9 +11,11 @@ tf.app.flags.DEFINE_string('log_dir', 'log',
                            "training log directory")
 tf.app.flags.DEFINE_integer('batch_size', 128,
                             "mini-batch size")
+tf.app.flags.DEFINE_integer('total_epoches', 10000,
+                            "")
 tf.app.flags.DEFINE_integer('hidden_size', 61,
                             "size of LSTM hidden memory")
-tf.app.flags.DEFINE_integer('num_steps', 15,
+tf.app.flags.DEFINE_integer('num_steps', 16,
                             "total steps of time")
 tf.app.flags.DEFINE_boolean('is_float32', True,
                             "data type of the LSTM state, float32 if true, float16 otherwise")
@@ -54,20 +56,21 @@ class TFPModel(object):
     def predict(self, inputs):
         """
         Param:
-            inputs: [batch_size, time_step, milage, dfs] = [128, 15, 61, 3]
+            inputs: [batch_size, time_step, milage] = [128, 15, 61]
         """
         logits_list = []
         cell = self.lstm_cell()
 
-        state_size = inputs.shape[]
-        state = cell.zero_state(self.batch_size, self.data_type) # [128, 61] 
-        print (state)
+        state = cell.zero_state(FLAGS.batch_size, self.data_type)  # [128, 61]
         with tf.variable_scope('LSTM') as scope:
-            tf.get_variable_scope().reuse_variables()
             for time_step in range(self.num_steps):
-                cell_out, state = cell(inputs, state, scope=scope)
+                if time_step > 0:
+                    tf.get_variable_scope().reuse_variables()
+                cell_out, state = cell(
+                    inputs[:, time_step, :], state, scope=scope)
                 logits_list.append(cell_out)
 
+        logits_list = tf.transpose(logits_list, perm=[1, 0, 2])
         return logits_list
 
     def loss_fn(self, logits, labels):
@@ -104,25 +107,60 @@ class TestingConfig(object):
 
 
 def main(_):
+
+    # TODO: read data into raw_data
+    # raw_data as [time, milage, density]
+    raw_data = []
+    # TODO: maybe raw_data.shape[0] isn't the multiple of FLAGS.num_steps
+    input_amount = raw_data.shape[0] / FLAGS.num_steps
+    batches_in_epoch = input_amount / FLAGS.batch_size
+    total_inputs = np.reshape(raw_data,
+                              [input_amount,
+                               FLAGS.num_steps,
+                               raw_data.shape[1],
+                               raw_data.shape[2]])
+    total_inputs_X = total_inputs[:-128]
+    total_inputs_Y = total_inputs[128:]
+    total_inputs_concat = np.concatenate(
+        (total_inputs_X, total_inputs_Y), axis=1)
+    total_inputs_shuffle = np.random.shuffle(total_inputs_concat)
+    total_inputs_split = np.hsplit( total_inputs_shuffle, 2)
+    total_inputs_X = total_inputs_split[0]
+    total_inputs_Y = total_inputs_split[1]
+
     model_config = TestingConfig()
 
     # TODO: data preprocessing X and T
-    X = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.num_steps, FLAGS.hidden_size, 3], name='DFS')
-    Y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.num_steps, FLAGS.hidden_size, 3], name='DFS')
+    X = tf.placeholder(dtype=tf.float32, shape=[
+                       None, FLAGS.num_steps, FLAGS.hidden_size], name='DFS')
+    Y = tf.placeholder(dtype=tf.float32, shape=[
+                       None, FLAGS.num_steps, FLAGS.hidden_size], name='DFS')
 
+    model = TFPModel(model_config, is_training=True)
+    logits = model.predict(X)
+    losses = model.loss_fn(logits, Y)
+    train_op = model.train(losses)
 
-    with tf.Graph().as_default():
-        model = TFPModel(model_config, is_training=True)
-        logits = model.predict(X)
-        losses = model.loss_fn(logits, Y)
-        train_op = model.train(losses)
+    init = tf.global_variables_initializer()
+    with tf.Session() as sess:
+        sess.run(init)
 
-        # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
-        # sv = Supervisor(logdir=FLAGS.log_dir)
-        # with sv.managed_session(FLAGS.master) as sess:
-        #     while not sv.should_stop():
-        #         sess.run(<my_train_op>)
-         
+        for k in range(FLAGS.total_epoches):
+
+            for i in range(batches_in_epoch):
+                start_idx = i * FLAGS.batch_size
+                end_idx = (i + 1) * FLAGS.batch_size
+                current_X_batch = total_inputs_X[start_idx:end_idx]
+                current_Y_batch = total_inputs_Y[start_idx:end_idx]
+
+                _, loss_value = sess.run([train_op, losses], feed_dict={X: current_X_batch, Y: current_Y_batch})
+
+                # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
+                # sv = Supervisor(logdir=FLAGS.log_dir)
+                # with sv.managed_session(FLAGS.master) as sess:
+                #     while not sv.should_stop():
+                #         sess.run(<my_train_op>)
+
 
 if __name__ == "__main__":
     tf.app.run()

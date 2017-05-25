@@ -27,37 +27,37 @@ tf.app.flags.DEFINE_float('momentum', 0.0,
                           "momentum of RMSPropOptimizer")
 
 
-def read_file(filename, vec):
-    filename = "mile_base/" + filename
-    with open(filename, "rb") as binaryfile:
+def read_file(filename, vec, week, st, ed):
+    filename = "../VD_data/mile_base/" + filename 
+    with open(filename, "rb") as binaryfile: 
         binaryfile.seek(0)
         ptr = binaryfile.read(4)
-
+        
         data_per_day = 1440
         VD_size = int.from_bytes(ptr, byteorder='little')
         ptr = binaryfile.read(4)
         day_max = int.from_bytes(ptr, byteorder='little')
-
-        # initialize list
+         
+        ## initialize list
         dis = (120 - 90) * 2 + 1
         for i in range(day_max):
-            tmp = [0] * dis
+            tmp = [[0,0,0]] * dis
             vec.append(tmp)
-
+                        
         index = 0
         for i in range(VD_size):
-
-            if 90 <= i / 2 and i / 2 <= 120:
+            
+            if st <= i / 2 and i / 2 <= ed:
                 for j in range(day_max):
                     ptr = binaryfile.read(2)
                     tmp = int.from_bytes(ptr, byteorder='little')
-                    vec[j][index] = tmp
+                    vec[j][index] = [tmp, (week + int(j / data_per_day)) % 7, j % data_per_day ]
                 index = index + 1
-            elif 120 < i / 2:
+            elif ed < i / 2:
                 break
             else:
                 binaryfile.read(2)
-
+    
     return vec
 
 
@@ -153,7 +153,7 @@ def main(_):
     # Read files
     # density_list = read_file("density_N1_N_2012_1_12.bin", density_list)
     # flow_list    = np.array(read_file("flow_N1_N_2012_1_12.bin"   , flow_list) )
-    speed_list = read_file("speed_N1_N_2012_1_12.bin", speed_list)
+    speed_list = read_file("speed_N5_N_2012_1_12.bin", speed_list, 0, 15, 28)
 
     # density_list = read_file("density_N1_N_2013_1_12.bin", density_list)
     # flow_list    = np.array(read_file("flow_N1_N_2013_1_12.bin"   , flow_list) )

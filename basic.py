@@ -19,33 +19,34 @@ tf.app.flags.DEFINE_integer('num_steps', 10,
                             "total steps of time")
 tf.app.flags.DEFINE_boolean('is_float32', True,
                             "data type of the LSTM state, float32 if true, float16 otherwise")
-tf.app.flags.DEFINE_float('learning_rate', 0.00025,
+tf.app.flags.DEFINE_float('learning_rate', 0.1,
                           "learning rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('decay_rate', 0.99,
                           "decay rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('momentum', 0.0,
                           "momentum of RMSPropOptimizer")
 
+
 def read_file(filename, vec):
-    filename = "../../VD_data/mile_base/" + filename 
-    with open(filename, "rb") as binaryfile: 
+    filename = "mile_base/" + filename
+    with open(filename, "rb") as binaryfile:
         binaryfile.seek(0)
         ptr = binaryfile.read(4)
-        
+
         data_per_day = 1440
         VD_size = int.from_bytes(ptr, byteorder='little')
         ptr = binaryfile.read(4)
         day_max = int.from_bytes(ptr, byteorder='little')
-        
-        ## initialize list
+
+        # initialize list
         dis = (120 - 90) * 2 + 1
         for i in range(day_max):
             tmp = [0] * dis
             vec.append(tmp)
-                        
+
         index = 0
         for i in range(VD_size):
-            
+
             if 90 <= i / 2 and i / 2 <= 120:
                 for j in range(day_max):
                     ptr = binaryfile.read(2)
@@ -53,16 +54,11 @@ def read_file(filename, vec):
                     vec[j][index] = tmp
                 index = index + 1
             elif 120 < i / 2:
-                break;
+                break
             else:
                 binaryfile.read(2)
-    
+
     return vec
-
-
-
-
-
 
 
 class TFPModel(object):
@@ -102,7 +98,7 @@ class TFPModel(object):
         state = cell.zero_state(FLAGS.batch_size, self.data_type)  # [128, 61]
         with tf.variable_scope('LSTM') as scope:
             for time_step in range(self.num_steps):
-                if time_step > 0:
+                if time_step > 0 or not self.is_training:
                     tf.get_variable_scope().reuse_variables()
                 cell_out, state = cell(
                     inputs[:, time_step, :], state, scope=scope)
@@ -148,7 +144,6 @@ def main(_):
 
     # TODO: read data into raw_data
     # raw_data as [time, milage, density]
-    raw_data = []
 
     # Initialize lists
     density_list = []
@@ -156,39 +151,39 @@ def main(_):
     speed_list = []
 
     # Read files
-    # density_list = read_file("density_N1_N_2012_1_12.bin", density_list) 
+    # density_list = read_file("density_N1_N_2012_1_12.bin", density_list)
     # flow_list    = np.array(read_file("flow_N1_N_2012_1_12.bin"   , flow_list) )
-    speed_list   = read_file("speed_N1_N_2012_1_12.bin", speed_list)
+    speed_list = read_file("speed_N1_N_2012_1_12.bin", speed_list)
 
-    # density_list = read_file("density_N1_N_2013_1_12.bin", density_list) 
+    # density_list = read_file("density_N1_N_2013_1_12.bin", density_list)
     # flow_list    = np.array(read_file("flow_N1_N_2013_1_12.bin"   , flow_list) )
-    speed_list   = read_file("speed_N1_N_2013_1_12.bin"  , speed_list)
+    # speed_list = read_file("speed_N1_N_2013_1_12.bin", speed_list)
 
     # np.stack((density_list, flow_list, speed_list), axis=2)
-    
-    
 
-    raw_data, valid_data, test_data = np.split(np.array(speed_list ).astype(np.float32), [8, 1, 1] )
-    
-    
+    speed_list = np.array(speed_list).astype(np.float)
+    print (speed_list.shape[0])
+    train_data, valid_data, test_data = np.split(
+        speed_list, [int(speed_list.shape[0] * 8 / 10), int(speed_list.shape[0] * 9 / 10)])
 
-    # TODO: maybe raw_data.shape[0] isn't the multiple of FLAGS.num_steps
-    input_amount = int(raw_data.shape[0] / FLAGS.num_steps)
-    batches_in_epoch = int(input_amount / FLAGS.batch_size)-1
+    print (train_data.shape, valid_data.shape, test_data.shape)
+    # TODO: maybe train_data.shape[0] isn't the multiple of FLAGS.num_steps
+    input_amount = int((train_data.shape[0] - 2) / FLAGS.num_steps)
+    batches_in_epoch = int(input_amount / FLAGS.batch_size) - 1
 
-    # print(input_amount, batches_in_epoch, raw_data.shape[1])
-    total_inputs = np.reshape(raw_data,
+    train_data = train_data[:-2]
+    total_inputs = np.reshape(train_data,
                               [input_amount,
                                FLAGS.num_steps,
-                               (raw_data.shape[1])])
-    total_inputs_X = total_inputs[:batches_in_epoch*128]
-    total_inputs_Y = total_inputs[128:(batches_in_epoch+1)*128]
+                               (train_data.shape[1])])
+    total_inputs_X = total_inputs[:batches_in_epoch * 128]
+    total_inputs_Y = total_inputs[1:
+                                  batches_in_epoch * 128 + 1]
     total_inputs_concat = np.concatenate(
         (total_inputs_X, total_inputs_Y), axis=1)
     np.random.shuffle(total_inputs_concat)
 
-
-    total_inputs_split = np.hsplit( total_inputs_concat, 2)
+    total_inputs_split = np.hsplit(total_inputs_concat, 2)
     total_inputs_X = total_inputs_split[0]
     total_inputs_Y = total_inputs_split[1]
 
@@ -199,10 +194,18 @@ def main(_):
                        None, FLAGS.num_steps, FLAGS.hidden_size], name='DFS')
     Y = tf.placeholder(dtype=tf.float32, shape=[
                        None, FLAGS.num_steps, FLAGS.hidden_size], name='DFS')
+    valid_X = tf.placeholder(dtype=tf.float32, shape=[
+        None, FLAGS.num_steps, FLAGS.hidden_size], name='DFS')
+    valid_Y = tf.placeholder(dtype=tf.float32, shape=[
+        None, FLAGS.num_steps, FLAGS.hidden_size], name='DFS')
 
     model = TFPModel(model_config, is_training=True)
     logits = model.predict(X)
     losses = model.loss_fn(logits, Y)
+
+    valid_model = TFPModel(model_config, is_training=False)
+    valid_logits = valid_model.predict(valid_X)
+    valid_losses = valid_model.loss_fn(valid_logits, valid_Y)
     train_op = model.train(losses)
 
     init = tf.global_variables_initializer()
@@ -210,26 +213,35 @@ def main(_):
         sess.run(init)
 
         for k in range(FLAGS.total_epoches):
-
+            loss_value = None
             for i in range(batches_in_epoch):
                 start_idx = i * FLAGS.batch_size
                 end_idx = (i + 1) * FLAGS.batch_size
-                
+
                 current_X_batch = total_inputs_X[start_idx:end_idx]
                 current_Y_batch = total_inputs_Y[start_idx:end_idx]
 
-                _, loss_value = sess.run([train_op, losses], feed_dict={X: current_X_batch, Y: current_Y_batch})
-                
-                # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
-                # sv = Supervisor(logdir=FLAGS.log_dir)
-                # with sv.managed_session(FLAGS.master) as sess:
-                #     while not sv.should_stop():
-                #         sess.run(<my_train_op>)
-            print("iterator : ", k , "loss : ", loss_value)
+                _, loss_value = sess.run([train_op, losses], feed_dict={
+                                         X: current_X_batch, Y: current_Y_batch})
 
+            valid_amount = int((valid_data.shape[0] - 4) / FLAGS.num_steps)
+            valid_data = valid_data[:-4]
+            valid_data = np.reshape(valid_data,
+                                    [valid_amount,
+                                     FLAGS.num_steps,
+                                     (valid_data.shape[1])])
+            X_valid_data = valid_data[:128]
+            Y_valid_data = valid_data[1:129]
 
+            valid_loss_value = sess.run(losses, feed_dict={
+                X: X_valid_data, Y: Y_valid_data})
+            print("iterator : ", k, "train loss : ", loss_value, "valid loss : ", valid_loss_value)
 
-
+    # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
+    # sv = Supervisor(logdir=FLAGS.log_dir)
+    # with sv.managed_session(FLAGS.master) as sess:
+    #     while not sv.should_stop():
+    #         sess.run(<my_train_op>)
 
 
 if __name__ == "__main__":

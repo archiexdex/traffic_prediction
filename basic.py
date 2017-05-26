@@ -17,6 +17,8 @@ tf.app.flags.DEFINE_integer('hidden_size', 61,
                             "size of LSTM hidden memory")
 tf.app.flags.DEFINE_integer('num_steps', 10,
                             "total steps of time")
+tf.app.flags.DEFINE_integer('predict_time', 5,
+                            "the predict time")
 tf.app.flags.DEFINE_boolean('is_float32', True,
                             "data type of the LSTM state, float32 if true, float16 otherwise")
 tf.app.flags.DEFINE_float('learning_rate', 0.1,
@@ -27,8 +29,8 @@ tf.app.flags.DEFINE_float('momentum', 0.0,
                           "momentum of RMSPropOptimizer")
 
 
-def read_file(filename, vec, week, st, ed):
-    filename = "../VD_data/mile_base/" + filename 
+def read_file(filename, vec, week_list, time, week, st, ed):
+    filename = "../../VD_data/mile_base/" + filename 
     with open(filename, "rb") as binaryfile: 
         binaryfile.seek(0)
         ptr = binaryfile.read(4)
@@ -37,12 +39,14 @@ def read_file(filename, vec, week, st, ed):
         VD_size = int.from_bytes(ptr, byteorder='little')
         ptr = binaryfile.read(4)
         day_max = int.from_bytes(ptr, byteorder='little')
-         
+        
         ## initialize list
-        dis = (120 - 90) * 2 + 1
+        dis = int((ed - st) * 2 + 1)
+        t = len(vec)
         for i in range(day_max):
-            tmp = [[0,0,0]] * dis
-            vec.append(tmp)
+            vec.append([0] * dis)
+            week_list.append([0] * dis)
+            time.append([0] * dis)
                         
         index = 0
         for i in range(VD_size):
@@ -51,14 +55,14 @@ def read_file(filename, vec, week, st, ed):
                 for j in range(day_max):
                     ptr = binaryfile.read(2)
                     tmp = int.from_bytes(ptr, byteorder='little')
-                    vec[j][index] = [tmp, (week + int(j / data_per_day)) % 7, j % data_per_day ]
+                    vec[t+j][index] = tmp 
+                    week_list[t+j][index] = (week + int(j / data_per_day)) % 7
+                    time[t+j][index] = j % data_per_day
                 index = index + 1
             elif ed < i / 2:
                 break
             else:
                 binaryfile.read(2)
-    
-    return vec
 
 
 class TFPModel(object):
@@ -149,20 +153,75 @@ def main(_):
     density_list = []
     flow_list = []
     speed_list = []
+    week_list = []
+    time_list = []
 
     # Read files
-    # density_list = read_file("density_N1_N_2012_1_12.bin", density_list)
-    # flow_list    = np.array(read_file("flow_N1_N_2012_1_12.bin"   , flow_list) )
-    speed_list = read_file("speed_N5_N_2012_1_12.bin", speed_list, 0, 15, 28)
+    # read_file("density_N5_N_2012_1_12.bin", density_list, [], [], 0, 15, 28.5)
+    # read_file("flow_N5_N_2012_1_12.bin"   , flow_list, [], [], 0, 15, 28.5)
+    # read_file("speed_N5_N_2012_1_12.bin", speed_list, week_list, time_list, 0, 15, 28.5)
 
-    # density_list = read_file("density_N1_N_2013_1_12.bin", density_list)
-    # flow_list    = np.array(read_file("flow_N1_N_2013_1_12.bin"   , flow_list) )
-    # speed_list = read_file("speed_N1_N_2013_1_12.bin", speed_list)
+    read_file("density_N5_N_2013_1_12.bin", density_list, [], [], 2, 15, 28.5)
+    read_file("flow_N5_N_2013_1_12.bin"   , flow_list, [], [], 2, 15, 28.5)
+    read_file("speed_N5_N_2013_1_12.bin", speed_list, week_list, time_list, 2, 15, 28.5)
 
-    # np.stack((density_list, flow_list, speed_list), axis=2)
+    # read_file("density_N5_N_2014_1_12.bin", density_list, [], [], 3, 15, 28.5)
+    # read_file("flow_N5_N_2014_1_12.bin"   , flow_list, [], [], 3, 15, 28.5)
+    # read_file("speed_N5_N_2014_1_12.bin", speed_list, week_list, time_list, 3, 15, 28.5)
+    
+    # fix data
+    # data[i][10] are always 0 and data[i][13] in 2012 are always 0
+    for i in range(len(speed_list)):
+        density_list[i][10] = int((density_list[i][9] + density_list[i][11]) / 2) if density_list[i][10] is 0 else density_list[i][10]
+        density_list[i][13] = int((density_list[i][12] + density_list[i][14]) / 2) if density_list[i][13] is 0 else density_list[i][13]
+        flow_list[i][10] = int((flow_list[i][9] + flow_list[i][11]) / 2) if flow_list[i][10] is 0 else flow_list[i][10]
+        flow_list[i][13] = int((flow_list[i][12] + flow_list[i][14]) / 2) if flow_list[i][13] is 0 else flow_list[i][13]
+        speed_list[i][10] = int((speed_list[i][9] + speed_list[i][11]) / 2) if speed_list[i][10] is 0 else speed_list[i][10]
+        speed_list[i][13] = int((speed_list[i][12] + speed_list[i][14]) / 2) if speed_list[i][13] is 0 else speed_list[i][13]
+
+    # merge different dimention data in one
+    raw_data = np.stack((density_list, flow_list, speed_list, week_list, time_list), axis=2)
+    
+    print("raw_data ", len(raw_data))
+
+    # distribute data to each batch and label
+    batch_data = []
+    label_data = []
+    for i in range(len(raw_data) - FLAGS.num_steps - FLAGS.predict_time):
+        batch_data.append(raw_data[i:i+FLAGS.num_steps])
+        label_data.append(raw_data[i+FLAGS.num_steps+FLAGS.predict_time])
+
+    print("batch_data size ", len(batch_data) )
+
+    # delete illegal batch and coresponding label
+    x = np.array(batch_data)
+    c = 0
+    p = []
+    for i in x:
+        flg = False
+        for j in i:
+            for k in j:
+                # density, flow, speed, week, time
+                t = np.argwhere( (k[0] is 0 or 100 < k[0]) or (k[0] is 0 or 40 * 2 < k[1]) or (k[2] is 0 or 120 < k[2]) )
+                if len(t) > 0:
+                    flg = True
+                    break
+            if flg:
+                break
+        if flg:
+            p.append(c)    
+        c += 1
+        print(c)
+    y = np.delete(x, p, 0)
+
+    print(">>>")
+    print(len(y))
+    print(len(x))
+
+
 
     speed_list = np.array(speed_list).astype(np.float)
-    print (speed_list.shape[0])
+    
     train_data, valid_data, test_data = np.split(
         speed_list, [int(speed_list.shape[0] * 8 / 10), int(speed_list.shape[0] * 9 / 10)])
 

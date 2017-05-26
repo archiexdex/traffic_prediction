@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+
 import numpy as np
 import tensorflow as tf
 
@@ -29,7 +30,7 @@ tf.app.flags.DEFINE_float('momentum', 0.0,
                           "momentum of RMSPropOptimizer")
 
 
-def read_file(filename, vec, week_list, time, week, st, ed):
+def read_file(filename, vec, week_list, time_list, week, st, ed):
     filename = "../../VD_data/mile_base/" + filename 
     with open(filename, "rb") as binaryfile: 
         binaryfile.seek(0)
@@ -42,11 +43,13 @@ def read_file(filename, vec, week_list, time, week, st, ed):
         
         ## initialize list
         dis = int((ed - st) * 2 + 1)
-        t = len(vec)
+        vt = len(vec)
+        wt = len(week_list)
+        tt = len(time_list)
         for i in range(day_max):
             vec.append([0] * dis)
             week_list.append([0] * dis)
-            time.append([0] * dis)
+            time_list.append([0] * dis)
                         
         index = 0
         for i in range(VD_size):
@@ -55,9 +58,9 @@ def read_file(filename, vec, week_list, time, week, st, ed):
                 for j in range(day_max):
                     ptr = binaryfile.read(2)
                     tmp = int.from_bytes(ptr, byteorder='little')
-                    vec[t+j][index] = tmp 
-                    week_list[t+j][index] = (week + int(j / data_per_day)) % 7
-                    time[t+j][index] = j % data_per_day
+                    vec[vt+j][index] = tmp 
+                    week_list[wt+j][index] = (week + int(j / data_per_day)) % 7
+                    time_list[tt+j][index] = j % data_per_day
                 index = index + 1
             elif ed < i / 2:
                 break
@@ -157,17 +160,17 @@ def main(_):
     time_list = []
 
     # Read files
-    # read_file("density_N5_N_2012_1_12.bin", density_list, [], [], 0, 15, 28.5)
-    # read_file("flow_N5_N_2012_1_12.bin"   , flow_list, [], [], 0, 15, 28.5)
-    # read_file("speed_N5_N_2012_1_12.bin", speed_list, week_list, time_list, 0, 15, 28.5)
+    read_file("density_N5_N_2012_1_12.bin", density_list, [], [], 0, 15, 28.5)
+    read_file("flow_N5_N_2012_1_12.bin"   , flow_list, [], [], 0, 15, 28.5)
+    read_file("speed_N5_N_2012_1_12.bin", speed_list, week_list, time_list, 0, 15, 28.5)
 
     read_file("density_N5_N_2013_1_12.bin", density_list, [], [], 2, 15, 28.5)
     read_file("flow_N5_N_2013_1_12.bin"   , flow_list, [], [], 2, 15, 28.5)
     read_file("speed_N5_N_2013_1_12.bin", speed_list, week_list, time_list, 2, 15, 28.5)
 
-    # read_file("density_N5_N_2014_1_12.bin", density_list, [], [], 3, 15, 28.5)
-    # read_file("flow_N5_N_2014_1_12.bin"   , flow_list, [], [], 3, 15, 28.5)
-    # read_file("speed_N5_N_2014_1_12.bin", speed_list, week_list, time_list, 3, 15, 28.5)
+    read_file("density_N5_N_2014_1_12.bin", density_list, [], [], 3, 15, 28.5)
+    read_file("flow_N5_N_2014_1_12.bin"   , flow_list, [], [], 3, 15, 28.5)
+    read_file("speed_N5_N_2014_1_12.bin", speed_list, week_list, time_list, 3, 15, 28.5)
     
     # fix data
     # data[i][10] are always 0 and data[i][13] in 2012 are always 0
@@ -195,6 +198,7 @@ def main(_):
 
     # delete illegal batch and coresponding label
     x = np.array(batch_data)
+    y = np.array(label_data)
     c = 0
     p = []
     for i in x:
@@ -212,14 +216,13 @@ def main(_):
             p.append(c)    
         c += 1
         print(c)
-    y = np.delete(x, p, 0)
+    xx = np.delete(x, p, 0)
+    yy = np.delete(y, p, 0)
+    
+    np.save("raw_data", xx)
+    np.save("label_data", yy)
 
-    print(">>>")
-    print(len(y))
-    print(len(x))
-
-
-
+    input("@@>>>")
     speed_list = np.array(speed_list).astype(np.float)
     
     train_data, valid_data, test_data = np.split(

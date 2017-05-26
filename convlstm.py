@@ -20,6 +20,7 @@ class TFPModel(object):
         self.is_training = is_training
         self.batch_size = config.batch_size
         self.hidden_size = config.hidden_size
+        self.rnn_layers = config.rnn_layers
         self.num_steps = config.num_steps
         if config.is_float32:
             self.data_type = tf.float32
@@ -43,8 +44,10 @@ class TFPModel(object):
                 mean=0.0, stddev=1.0, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=1.0, seed=None, dtype=tf.float32)
-            conv1 = tf.layers.conv1d(inputs=reshaped_input, filters=10, kernel_size=3, strides=2, padding='valid',
-                                     activation=tf.nn.relu, kernel_initializer=kernel_init, bias_initializer=bias_init, name=scope.name, reuse=scope.reuse)
+            conv1 = tf.layers.conv1d(inputs=reshaped_input, filters=10, kernel_size=3,
+                                     strides=2, padding='valid', activation=tf.nn.relu,
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
+                                     name=scope.name, reuse=scope.reuse)
             print ("conv1:", conv1)
 
         with tf.variable_scope('conv2') as scope:
@@ -52,8 +55,10 @@ class TFPModel(object):
                 mean=0.0, stddev=1.0, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=1.0, seed=None, dtype=tf.float32)
-            conv2 = tf.layers.conv1d(inputs=conv1, filters=10, kernel_size=3, strides=2, padding='valid',
-                                     activation=tf.nn.relu, kernel_initializer=kernel_init, bias_initializer=bias_init, name=scope.name, reuse=scope.reuse)
+            conv2 = tf.layers.conv1d(inputs=conv1, filters=10, kernel_size=3, strides=2,
+                                     padding='valid', activation=tf.nn.relu,
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
+                                     name=scope.name, reuse=scope.reuse)
             print ("conv2:", conv2)
 
         with tf.variable_scope('fullycon') as scope:
@@ -63,30 +68,52 @@ class TFPModel(object):
                 mean=0.0, stddev=1.0, seed=None, dtype=tf.float32)
             flatten = tf.contrib.layers.flatten(inputs=conv2, scope=scope.name)
             fullycon = tf.contrib.layers.fully_connected(
-                inputs=flatten, num_outputs=self.hidden_size, activation_fn=tf.nn.relu, weights_initializer=kernel_init, biases_initializer=bias_init, reuse=scope.reuse, trainable=True, scope=scope)
+                inputs=flatten, num_outputs=self.hidden_size, activation_fn=tf.nn.relu,
+                weights_initializer=kernel_init, biases_initializer=bias_init,
+                reuse=scope.reuse, trainable=True, scope=scope)
             print ("fullycon:", fullycon)
 
         with tf.variable_scope('reshape_back') as scope:
-            lstm_input = tf.reshape(
+            reshape_back = tf.reshape(
                 fullycon, [self.batch_size, self.num_steps, self.hidden_size], name=scope.name)
-            print ("lstm_input:", lstm_input)
+            print ("reshape_back:", reshape_back)
 
         with tf.variable_scope('lstm') as scope:
-            cell = tf.contrib.rnn.LSTMCell(self.hidden_size, use_peepholes=False, initializer=None,
-                                           forget_bias=1.0, state_is_tuple=True, activation=tf.tanh, reuse=tf.get_variable_scope().reuse)
-            state = cell.zero_state(
-                batch_size=self.batch_size, dtype=tf.float32)
-            logits_list = []
-            for time_step in range(self.num_steps):
-                if time_step > 0 or not self.is_training:
-                    tf.get_variable_scope().reuse_variables()
-                cell_out, state = cell(
-                    inputs=lstm_input[:, time_step, :], state=state, scope=scope)
-                logits_list.append(cell_out)
-            last_logit = logits_list[-1]
-            print ("last_logit", last_logit)
+            cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell() for _ in range(self.rnn_layers)])
+
+            # dynamic method
+            lstm_input = reshape_back
+            outputs, states = tf.nn.dynamic_rnn(
+                cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
+            print ("last_logit:", outputs[:, -1, :])
+            exit('a')
+
+            # static method
+            # lstm_input = tf.unstack(reshape_back, num=self.num_steps, axis=1)
+            # print ("lstm_input", lstm_input)
+            # outputs, states = tf.contrib.rnn.static_rnn(cell=cell, inputs=lstm_input, dtype=tf.float32, scope=scope)
+            # print ("last_logit:", outputs[-1])
+
+            # vanilla method
+            # lstm_input = reshape_back
+            # state = cell.zero_state(
+            #     batch_size=self.batch_size, dtype=tf.float32)
+            # logits_list = []
+            # for time_step in range(self.num_steps):
+            #     if time_step > 0 or not self.is_training:
+            #         tf.get_variable_scope().reuse_variables()
+            #     cell_out, state = cell(
+            #         inputs=lstm_input[:, time_step, :], state=state, scope=scope)
+            #     logits_list.append(cell_out)
+            # last_logit = logits_list[-1]
+            # print ("last_logit:", last_logit)
 
         return last_logit
+
+    def lstm_cell(self):
+        return tf.contrib.rnn.LSTMCell(self.hidden_size, use_peepholes=False, initializer=None,
+                                       forget_bias=1.0, state_is_tuple=True,
+                                       activation=tf.tanh, reuse=tf.get_variable_scope().reuse)
 
     def losses(self, logits, labels):
         """

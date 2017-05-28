@@ -86,7 +86,6 @@ class TFPModel(object):
             outputs, states = tf.nn.dynamic_rnn(
                 cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
             print ("last_logit:", outputs[:, -1, :])
-            exit('a')
 
             # static method
             # lstm_input = tf.unstack(reshape_back, num=self.num_steps, axis=1)
@@ -108,7 +107,7 @@ class TFPModel(object):
             # last_logit = logits_list[-1]
             # print ("last_logit:", last_logit)
 
-        return last_logit
+        return outputs[:, -1, :]
 
     def lstm_cell(self):
         return tf.contrib.rnn.LSTMCell(self.hidden_size, use_peepholes=False, initializer=None,

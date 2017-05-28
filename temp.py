@@ -14,7 +14,7 @@ tf.app.flags.DEFINE_integer('batch_size', 128,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 10000,
                             "")
-tf.app.flags.DEFINE_integer('hidden_size', 27,
+tf.app.flags.DEFINE_integer('hidden_size', 28,
                             "size of LSTM hidden memory")
 tf.app.flags.DEFINE_integer('rnn_layers', 2,
                             "number of stacked lstm")
@@ -30,38 +30,41 @@ tf.app.flags.DEFINE_float('momentum', 0.0,
                           "momentum of RMSPropOptimizer")
 
 
-def read_file(filename, vec):
-    filename = "mile_base/" + filename
-    with open(filename, "rb") as binaryfile:
+def read_file(filename, vec, week_list, time, week, st, ed):
+    filename = "../../VD_data/mile_base/" + filename 
+    with open(filename, "rb") as binaryfile: 
         binaryfile.seek(0)
         ptr = binaryfile.read(4)
-
+        
         data_per_day = 1440
         VD_size = int.from_bytes(ptr, byteorder='little')
         ptr = binaryfile.read(4)
         day_max = int.from_bytes(ptr, byteorder='little')
-
-        # initialize list
-        dis = (120 - 90) * 2 + 1
+        
+        ## initialize list
+        dis = int((ed - st) * 2 + 1)
+        t = len(vec)
         for i in range(day_max):
-            tmp = [0] * dis
-            vec.append(tmp)
-
+            vec.append([0] * dis)
+            week_list.append([0] * dis)
+            time.append([0] * dis)
+                        
         index = 0
         for i in range(VD_size):
-
-            if 90 <= i / 2 and i / 2 <= 120:
+            
+            if st <= i / 2 and i / 2 <= ed:
                 for j in range(day_max):
                     ptr = binaryfile.read(2)
                     tmp = int.from_bytes(ptr, byteorder='little')
-                    vec[j][index] = tmp
+                    vec[t+j][index] = tmp 
+                    week_list[t+j][index] = (week + int(j / data_per_day)) % 7
+                    time[t+j][index] = j % data_per_day
                 index = index + 1
-            elif 120 < i / 2:
+            elif ed < i / 2:
                 break
             else:
                 binaryfile.read(2)
 
-    return vec
 
 
 class TestingConfig(object):
@@ -79,6 +82,11 @@ class TestingConfig(object):
 
 
 def main(_):
+    
+    raw_data = np.load("raw_data.npy")
+    label_data = np.load("label_data.npy")
+    label_data = label_data[:,:,1]
+    print(label_data.shape[0], label_data.shape[1])
 
     X = tf.placeholder(dtype=tf.float32, shape=[
         FLAGS.batch_size, FLAGS.num_steps, FLAGS.hidden_size, 5], name='input_data')
@@ -96,13 +104,19 @@ def main(_):
 
         for k in range(FLAGS.total_epoches):
             loss_value = None
-            for i in range(1000):
+            i = 0
+            while (i+1) * FLAGS.batch_size < len(raw_data):
+            # for i in range(1000):
                 current_X_batch = np.zeros([128, 10, 28, 5], dtype=np.float)
                 current_Y_batch = np.zeros([128, 28], dtype=np.float)
                 
+                current_X_batch = raw_data[i:i+FLAGS.batch_size]
+                current_Y_batch = label_data[i:i+FLAGS.batch_size]
 
                 _, loss_value = sess.run([train_op, loss_op], feed_dict={
                     X: current_X_batch, Y: current_Y_batch})
+                # print(i)
+                i += 1
 
             print("iterator : ", k, "train loss : ", loss_value)
 

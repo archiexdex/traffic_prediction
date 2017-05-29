@@ -1,6 +1,8 @@
 # data
 mile_base/
 *.npy
+log/
+train/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

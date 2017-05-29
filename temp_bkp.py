@@ -4,8 +4,8 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
-import convlstm as convlstm
-# import convlstm_bkp as convlstm
+# import convlstm as convlstm
+import convlstm_bkp as convlstm
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -96,12 +96,9 @@ class TestingConfig(object):
 
 def main(_):
 
-    raw_data = np.load("raw_data_1.npy")
-    label_data = np.load("label_data_1.npy")
-    raw_data = raw_data[:, :, :, 1]
-    label_data = label_data[:, :, 1]
-
-    # TODO
+    # raw_data = np.load("raw_data.npy")
+    # label_data = np.load("label_data.npy")
+    # # TODO
     # raw_data_t = raw_data[:, :, :, 1]
     # label_data_t = label_data[:, :, 1]
     # c = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
@@ -110,13 +107,13 @@ def main(_):
     # raw_data = c[:, :raw_data_t.size //
     #              len(raw_data_t)].reshape(raw_data_t.shape)
     # label_data = c[:, raw_data_t.size //
-    #                len(raw_data_t):].reshape(label_data_t.shape)
-    print(raw_data.shape)
-    print(label_data.shape)
-
+    #              len(raw_data_t):].reshape(label_data_t.shape)
+    # print(raw_data.shape)
+    # print(label_data.shape)
+    
     # TODO
     X = tf.placeholder(dtype=tf.float32, shape=[
-        FLAGS.batch_size, FLAGS.num_steps, 28 * 1], name='input_data')
+        FLAGS.batch_size, FLAGS.num_steps, 28 , 5], name='input_data')
     Y = tf.placeholder(dtype=tf.float32, shape=[
         FLAGS.batch_size, 28], name='label_data')
 
@@ -134,35 +131,33 @@ def main(_):
         train_writer = tf.summary.FileWriter('train', sess.graph)
         sess.run(init)
 
-        for k in range(FLAGS.total_epoches):
-            i = 0
-            loss_sum = 0.0
-            while (i + 1) * FLAGS.batch_size < len(raw_data):
-                current_X_batch = raw_data[i:i + FLAGS.batch_size]
-                current_Y_batch = label_data[i:i + FLAGS.batch_size]
-                _, loss_value = sess.run([train_op, loss_op], feed_dict={
-                    X: current_X_batch, Y: current_Y_batch})
-                loss_sum += loss_value
-                i += 1
-                if i % 1000 == 0:
-                    print ("k: ", k, "i : ", i,
-                           "mean batch loss : ", loss_sum / 1000.0)
-                    loss_sum = 0.0
-
-        # for k in range(1):
+        # for k in range(FLAGS.total_epoches):
         #     i = 0
-        #     while (i + 1) < 100:
-        #         current_X_batch = np.ones(
-        #             [FLAGS.batch_size, 10, 28], dtype=np.float)
-        #         current_Y_batch = np.ones(
-        #             [FLAGS.batch_size, 28], dtype=np.float) * 3
-        #         _ = sess.run([train_op], feed_dict={
+        #     loss_sum = 0.0
+        #     while (i + 1) * FLAGS.batch_size < len(raw_data):
+        #         current_X_batch = raw_data[i:i + FLAGS.batch_size]
+        #         current_Y_batch = label_data[i:i + FLAGS.batch_size]
+        #         _, loss_value = sess.run([train_op, loss_op], feed_dict={
         #             X: current_X_batch, Y: current_Y_batch})
+        #         loss_sum += loss_value
         #         i += 1
-        #         if i % 5 == 0:
-        #             loss_value = sess.run(loss_op, feed_dict={
-        #                 X: current_X_batch, Y: current_Y_batch})
-        #             print ("i : ", i, "batch loss : ", loss_value)
+        #         if i % 500 == 0:
+        #             print ("i : ", i, "mean batch loss : ", loss_sum/500.0)
+
+        for k in range(1):
+            i = 0
+            while (i + 1) < 100:
+                current_X_batch = np.ones(
+                    [FLAGS.batch_size, 10, 28, 5], dtype=np.float)
+                current_Y_batch = np.ones(
+                    [FLAGS.batch_size, 28], dtype=np.float) * 3
+                _ = sess.run([train_op], feed_dict={
+                    X: current_X_batch, Y: current_Y_batch})
+                i += 1
+                if i % 5 == 0:
+                    loss_value = sess.run(loss_op, feed_dict={
+                        X: current_X_batch, Y: current_Y_batch})
+                    print ("i : ", i, "batch loss : ", loss_value)
 
         # Save the variables to disk.
         save_path = saver.save(sess, FLAGS.log_dir)

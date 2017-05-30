@@ -130,6 +130,7 @@ class TFPModel(object):
         # return cross_entropy
         losses = tf.squared_difference(logits, labels)
         l2_loss = tf.reduce_mean(losses)
+        tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
 
     def train(self, loss, global_step=None):

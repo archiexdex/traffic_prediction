@@ -160,27 +160,37 @@ def main(_):
     time_list = []
 
     # Read files
+    print("Reading 2012...")
     read_file("density_N5_N_2012_1_12.bin", density_list, [], [], 0, 15, 28.5)
     read_file("flow_N5_N_2012_1_12.bin"   , flow_list, [], [], 0, 15, 28.5)
     read_file("speed_N5_N_2012_1_12.bin", speed_list, week_list, time_list, 0, 15, 28.5)
 
+    print("Reading 2013...")
     read_file("density_N5_N_2013_1_12.bin", density_list, [], [], 2, 15, 28.5)
     read_file("flow_N5_N_2013_1_12.bin"   , flow_list, [], [], 2, 15, 28.5)
     read_file("speed_N5_N_2013_1_12.bin", speed_list, week_list, time_list, 2, 15, 28.5)
 
+    print("Reading 2014...")
     read_file("density_N5_N_2014_1_12.bin", density_list, [], [], 3, 15, 28.5)
     read_file("flow_N5_N_2014_1_12.bin"   , flow_list, [], [], 3, 15, 28.5)
     read_file("speed_N5_N_2014_1_12.bin", speed_list, week_list, time_list, 3, 15, 28.5)
     
     # fix data
     # data[i][10] are always 0 and data[i][13] in 2012 are always 0
+    print("Fixing data...")
     for i in range(len(speed_list)):
-        density_list[i][10] = int((density_list[i][9] + density_list[i][11]) / 2) if density_list[i][10] is 0 else density_list[i][10]
-        density_list[i][13] = int((density_list[i][12] + density_list[i][14]) / 2) if density_list[i][13] is 0 else density_list[i][13]
-        flow_list[i][10] = int((flow_list[i][9] + flow_list[i][11]) / 2) if flow_list[i][10] is 0 else flow_list[i][10]
-        flow_list[i][13] = int((flow_list[i][12] + flow_list[i][14]) / 2) if flow_list[i][13] is 0 else flow_list[i][13]
-        speed_list[i][10] = int((speed_list[i][9] + speed_list[i][11]) / 2) if speed_list[i][10] is 0 else speed_list[i][10]
-        speed_list[i][13] = int((speed_list[i][12] + speed_list[i][14]) / 2) if speed_list[i][13] is 0 else speed_list[i][13]
+        if density_list[i][10] == 0:
+            density_list[i][10] = int((density_list[i][9] + density_list[i][11]) / 2)
+        if density_list[i][13] == 0:
+            density_list[i][13] = int((density_list[i][12] + density_list[i][14]) / 2)
+        if flow_list[i][10] == 0:
+            flow_list[i][10] = int((flow_list[i][9] + flow_list[i][11]) / 2) 
+        if flow_list[i][13] == 0:
+            flow_list[i][13] = int((flow_list[i][12] + flow_list[i][14]) / 2)
+        if speed_list[i][10] == 0:
+            speed_list[i][10] = int((speed_list[i][9] + speed_list[i][11]) / 2)
+        if speed_list[i][13] == 0:
+            speed_list[i][13] = int((speed_list[i][12] + speed_list[i][14]) / 2)
 
     # merge different dimention data in one
     raw_data = np.stack((density_list, flow_list, speed_list, week_list, time_list), axis=2)
@@ -192,7 +202,7 @@ def main(_):
     label_data = []
     for i in range(len(raw_data) - FLAGS.num_steps - FLAGS.predict_time):
         batch_data.append(raw_data[i:i+FLAGS.num_steps])
-        label_data.append(raw_data[i+FLAGS.num_steps+FLAGS.predict_time])
+        label_data.append(raw_data[i+FLAGS.num_steps+FLAGS.predict_time-1])
 
     print("batch_data size ", len(batch_data) )
 
@@ -201,6 +211,7 @@ def main(_):
     y = np.array(label_data)
     c = 0
     p = []
+    print("Removing illegal data...")
     for i in x:
         flg = False
         for j in i:
@@ -218,11 +229,29 @@ def main(_):
         print(c)
     xx = np.delete(x, p, 0)
     yy = np.delete(y, p, 0)
-    
-    np.save("raw_data", xx)
-    np.save("label_data", yy)
 
-    input("@@>>>")
+    print(xx)
+    print(yy)
+
+    # shuffle data
+    c = np.array(range(len(xx)) )
+    np.random.shuffle(c)
+    raw = []
+    label = []
+    for i in c:
+        raw.append(xx[i])
+        label.append(yy[i])
+
+    np.save("raw_data_"+str(FLAGS.predict_time), np.array(raw) )
+    np.save("label_data_"+str(FLAGS.predict_time), np.array(label) )
+
+    print(np.array(raw))
+    print(np.array(label))
+
+    input("Finish")
+    
+    
+
     speed_list = np.array(speed_list).astype(np.float)
     
     train_data, valid_data, test_data = np.split(
@@ -239,8 +268,7 @@ def main(_):
                                FLAGS.num_steps,
                                (train_data.shape[1])])
     total_inputs_X = total_inputs[:batches_in_epoch * 128]
-    total_inputs_Y = total_inputs[1:
-                                  batches_in_epoch * 128 + 1]
+    total_inputs_Y = total_inputs[1: batches_in_epoch * 128 + 1]
     total_inputs_concat = np.concatenate(
         (total_inputs_X, total_inputs_Y), axis=1)
     np.random.shuffle(total_inputs_concat)

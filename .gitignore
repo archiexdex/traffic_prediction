@@ -2,6 +2,7 @@
 mile_base/
 *.npy
 log/
+checkpoints/
 train/
 
 # Byte-compiled / optimized / DLL files

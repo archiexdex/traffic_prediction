@@ -49,6 +49,7 @@ class TFPModel(object):
                                      strides=2, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
+            self._activation_summary(conv1)
             # print("conv1:", conv1)
 
         with tf.variable_scope('conv2') as scope:
@@ -60,6 +61,7 @@ class TFPModel(object):
                                      strides=2, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
+            self._activation_summary(conv2)
             # print("conv2:", conv2)
 
         with tf.variable_scope('fullycon') as scope:
@@ -72,6 +74,7 @@ class TFPModel(object):
                 inputs=flatten, num_outputs=self.hidden_size, activation_fn=tf.nn.relu,
                 weights_initializer=kernel_init, biases_initializer=bias_init,
                 reuse=scope.reuse, trainable=True, scope=scope)
+            self._activation_summary(fullycon)
             # print("fullycon:", fullycon)
 
         with tf.variable_scope('reshape_back') as scope:
@@ -140,6 +143,21 @@ class TFPModel(object):
             self.learning_rate, self.decay_rate, self.momentum,
             1e-10).minimize(loss, global_step=global_step)
         return train_op
+    
+
+    def _activation_summary(self, x):
+        """Helper to create summaries for activations.
+        Creates a summary that provides a histogram of activations.
+        Creates a summary that measures the sparsity of activations.
+        Args:
+        x: Tensor
+        Returns: nothing
+        """
+        tensor_name = x.op.name
+        tf.summary.histogram(tensor_name + '/activations', x)
+        tf.summary.scalar(tensor_name + '/sparsity',
+                        tf.nn.zero_fraction(x))
+
 
 if __name__ == "__main__":
     pass

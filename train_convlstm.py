@@ -111,10 +111,21 @@ def main(_):
         global_steps = tf.train.get_or_create_global_step(graph=graph)
 
         # read data
-        train_raw_data = np.load(FLAGS.data_dir + "raw_data_6.npy")
-        train_label_data = np.load(FLAGS.data_dir + "label_data_6.npy")
+        raw_data_t = np.load(FLAGS.data_dir + "raw_data_6.npy")
+        label_data_t = np.load(FLAGS.data_dir + "label_data_6.npy")
         test_raw_data = np.load(FLAGS.data_dir + "test_raw_data_6.npy")
         test_label_data = np.load(FLAGS.data_dir + "test_label_data_6.npy")
+
+        # concat for later shuffle
+        concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
+                       label_data_t.reshape(len(label_data_t), -1)]
+        train_raw_data = concat[:, :raw_data_t.size //
+                                len(raw_data_t)].reshape(raw_data_t.shape)
+        train_label_data = concat[:, raw_data_t.size //
+                                  len(raw_data_t):].reshape(label_data_t.shape)
+        del raw_data_t
+        del label_data_t
+
 
         # select flow from [density, flow, speed, weekday, time]
         train_label_data = train_label_data[:, :, 1]
@@ -146,19 +157,11 @@ def main(_):
         saver = tf.train.Saver()
 
         # Session
-        with tf.Session() as sess:
+        with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
             sess.run(init)
             for epoch_steps in range(FLAGS.total_epoches):
                 # shuffle
-                raw_data_t = train_raw_data
-                label_data_t = train_label_data
-                concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
-                               label_data_t.reshape(len(label_data_t), -1)]
                 np.random.shuffle(concat)
-                train_raw_data = concat[:, :raw_data_t.size //
-                                        len(raw_data_t)].reshape(raw_data_t.shape)
-                train_label_data = concat[:, raw_data_t.size //
-                                          len(raw_data_t):].reshape(label_data_t.shape)
 
                 # training
                 train_loss_sum = 0.0

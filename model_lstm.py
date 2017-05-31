@@ -39,26 +39,25 @@ class TFPModel(object):
             # TODO
             reshaped_input = tf.reshape(inputs, [
                                         self.batch_size, self.num_steps, 28 * 1], name=scope.name)
-            print ("reshape:", reshaped_input)
+            # print ("reshape:", reshaped_input)
 
         with tf.variable_scope('lstm') as scope:
             cells = rnn.MultiRNNCell(
                 [self.lstm_cell() for _ in range(self.rnn_layers)])
 
-            # dynamic method
+            ## dynamic method
             # lstm_input = reshape_back
             # outputs, states = tf.nn.dynamic_rnn(
             #     cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
             # print ("last_logit:", outputs[:, -1, :])
 
-            # static method
+            ## static method
             lstm_input = tf.unstack(reshaped_input, num=self.num_steps, axis=1)
-            print ("lstm_input", lstm_input)
             outputs, states = rnn.static_rnn(
                 cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
-            print ("last_logit:", outputs[-1])
+            # print ("last_logit:", outputs[-1])
 
-            # vanilla method
+            ## vanilla method
             # lstm_input = reshape_back
             # state = cell.zero_state(
             #     batch_size=self.batch_size, dtype=tf.float32)
@@ -85,13 +84,9 @@ class TFPModel(object):
             logits:
             labels:
         """
-        # with tf.name_scope('cross_entropy'):
-        #     diff = tf.nn.softmax_cross_entropy_with_logits(
-        #         labels=labels, logits=logits)
-        #     cross_entropy = tf.reduce_mean(diff)
-        # return cross_entropy
-        losses = tf.squared_difference(logits, labels)
-        l2_loss = tf.reduce_mean(losses)
+        with tf.name_scope('l2_loss'):
+            losses = tf.squared_difference(logits, labels)
+            l2_loss = tf.reduce_mean(losses)
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
 

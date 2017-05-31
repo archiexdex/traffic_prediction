@@ -36,9 +36,9 @@ class TFPModel(object):
         Param:
         """
         with tf.variable_scope('reshape') as scope:
-            reshaped_input = tf.reshape(inputs, [
-                                        self.batch_size * self.num_steps, self.hidden_size, 5], name=scope.name)
-            print ("reshape:", reshaped_input)
+            reshaped_input = tf.reshape(
+                inputs, [self.batch_size * self.num_steps, self.hidden_size, 5], name=scope.name)
+            # print("reshape:", reshaped_input)
 
         with tf.variable_scope('conv1') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -49,7 +49,7 @@ class TFPModel(object):
                                      strides=2, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
-            print ("conv1:", conv1)
+            # print("conv1:", conv1)
 
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -60,7 +60,7 @@ class TFPModel(object):
                                      strides=2, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
-            print ("conv2:", conv2)
+            # print("conv2:", conv2)
 
         with tf.variable_scope('fullycon') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -72,31 +72,30 @@ class TFPModel(object):
                 inputs=flatten, num_outputs=self.hidden_size, activation_fn=tf.nn.relu,
                 weights_initializer=kernel_init, biases_initializer=bias_init,
                 reuse=scope.reuse, trainable=True, scope=scope)
-            print ("fullycon:", fullycon)
+            # print("fullycon:", fullycon)
 
         with tf.variable_scope('reshape_back') as scope:
             reshape_back = tf.reshape(
                 fullycon, [self.batch_size, self.num_steps, self.hidden_size], name=scope.name)
-            print ("reshape_back:", reshape_back)
+            # print("reshape_back:", reshape_back)
 
         with tf.variable_scope('lstm') as scope:
             cells = rnn.MultiRNNCell(
                 [self.lstm_cell() for _ in range(self.rnn_layers)])
 
-            # dynamic method
+            ## dynamic method
             # lstm_input = reshape_back
             # outputs, states = tf.nn.dynamic_rnn(
             #     cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
-            # print ("last_logit:", outputs[:, -1, :])
+            # print("last_logit:", outputs[:, -1, :])
 
-            # static method
+            ## static method
             lstm_input = tf.unstack(reshape_back, num=self.num_steps, axis=1)
-            print ("lstm_input", lstm_input)
             outputs, states = rnn.static_rnn(
                 cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
-            print ("last_logit:", outputs[-1])
+            # print("last_logit:", outputs[-1])
 
-            # vanilla method
+            ## vanilla method
             # lstm_input = reshape_back
             # state = cell.zero_state(
             #     batch_size=self.batch_size, dtype=tf.float32)
@@ -123,13 +122,9 @@ class TFPModel(object):
             logits:
             labels:
         """
-        # with tf.name_scope('cross_entropy'):
-        #     diff = tf.nn.softmax_cross_entropy_with_logits(
-        #         labels=labels, logits=logits)
-        #     cross_entropy = tf.reduce_mean(diff)
-        # return cross_entropy
-        losses = tf.squared_difference(logits, labels)
-        l2_loss = tf.reduce_mean(losses)
+        with tf.name_scope('l2_loss'):
+            losses = tf.squared_difference(logits, labels)
+            l2_loss = tf.reduce_mean(losses)
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
 
@@ -145,7 +140,6 @@ class TFPModel(object):
             self.learning_rate, self.decay_rate, self.momentum,
             1e-10).minimize(loss, global_step=global_step)
         return train_op
-
 
 if __name__ == "__main__":
     pass

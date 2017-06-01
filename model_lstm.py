@@ -36,9 +36,8 @@ class TFPModel(object):
         Param:
         """
         with tf.variable_scope('reshape') as scope:
-            # TODO
             reshaped_input = tf.reshape(inputs, [
-                                        self.batch_size, self.num_steps, 28 * 1], name=scope.name)
+                                        self.batch_size, self.num_steps, 28], name=scope.name)
             # print ("reshape:", reshaped_input)
 
         with tf.variable_scope('lstm') as scope:
@@ -86,7 +85,9 @@ class TFPModel(object):
         """
         with tf.name_scope('l2_loss'):
             losses = tf.squared_difference(logits, labels)
+            print(losses)
             l2_loss = tf.reduce_mean(losses)
+            print(l2_loss)
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
 

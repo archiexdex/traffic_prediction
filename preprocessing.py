@@ -127,13 +127,13 @@ xx = np.delete(x, p, 0)
 yy = np.delete(y, p, 0)
 
 # shuffle data
-c = np.array(range(len(xx)))
-np.random.shuffle(c)
-raw = []
-label = []
-for i in c:
-    raw.append(xx[i])
-    label.append(yy[i])
+# c = np.array(range(len(xx)))
+# np.random.shuffle(c)
+# raw = []
+# label = []
+# for i in c:
+#     raw.append(xx[i])
+#     label.append(yy[i])
 
 # split data for training data and testing data
 raw = np.split(np.array(raw), [int(len(raw) * 0.9)])

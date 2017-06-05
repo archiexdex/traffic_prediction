@@ -9,7 +9,7 @@ import model_lstm
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('data_dir', 'data/',
+tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'checkpoints/',
                            "training checkpoints directory")
@@ -19,11 +19,11 @@ tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 0,
                             "total training epoches")
-tf.app.flags.DEFINE_integer('hidden_size', 28,
+tf.app.flags.DEFINE_integer('hidden_size', 56,
                             "size of LSTM hidden memory")
 tf.app.flags.DEFINE_integer('rnn_layers', 1,
                             "number of stacked lstm")
-tf.app.flags.DEFINE_integer('num_steps', 10,
+tf.app.flags.DEFINE_integer('num_steps', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_boolean('is_float32', True,
                             "data type of the LSTM state, float32 if true, float16 otherwise")
@@ -33,44 +33,6 @@ tf.app.flags.DEFINE_float('decay_rate', 0,
                           "decay rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('momentum', 0,
                           "momentum of RMSPropOptimizer")
-
-
-def read_file(filename, vec, week_list, time, week, st, ed):
-    filename = "../../VD_data/mile_base/" + filename
-    with open(filename, "rb") as binaryfile:
-        binaryfile.seek(0)
-        ptr = binaryfile.read(4)
-
-        data_per_day = 1440
-        VD_size = int.from_bytes(ptr, byteorder='little')
-        ptr = binaryfile.read(4)
-        day_max = int.from_bytes(ptr, byteorder='little')
-
-        # initialize list
-        dis = int((ed - st) * 2 + 1)
-        t = len(vec)
-        for i in range(day_max):
-            vec.append([0] * dis)
-            week_list.append([0] * dis)
-            time.append([0] * dis)
-
-        index = 0
-        for i in range(VD_size):
-
-            if st <= i / 2 and i / 2 <= ed:
-                for j in range(day_max):
-                    ptr = binaryfile.read(2)
-                    tmp = int.from_bytes(ptr, byteorder='little')
-                    vec[t + j][index] = tmp
-                    week_list[t + j][index] = (week +
-                                               int(j / data_per_day)) % 7
-                    time[t + j][index] = j % data_per_day
-                index = index + 1
-            elif ed < i / 2:
-                break
-            else:
-                binaryfile.read(2)
-
 
 class TestingConfig(object):
     """
@@ -110,12 +72,14 @@ def main(_):
     with tf.get_default_graph().as_default() as graph:
 
         # read data [amount, num_steps, mileage, dfswt] == [None, 10, 28, 5]
-        test_raw_data = np.load(FLAGS.data_dir + "test_raw_data_6.npy")
-        test_label_data = np.load(FLAGS.data_dir + "test_label_data_6.npy")
+        # test_raw_data = np.load(FLAGS.data_dir + "test_batch_data_180_av_st_7_ed_21.npy")
+        # test_label_data = np.load(FLAGS.data_dir + "test_label_data_180_av_st_7_ed_21.npy")
+        test_raw_data = np.load("test_batch_data_180_av_st_7_ed_21.npy")
+        test_label_data = np.load("test_label_data_180_av_st_7_ed_21.npy")
 
         # select flow from [density, flow, speed, weekday, time]
-        test_raw_data = test_raw_data[:, :, :, 1]
-        test_label_data = test_label_data[:, :, 1]
+        # test_raw_data = test_raw_data[:, :, :, 1]
+        # test_label_data = test_label_data[:, :, 1]
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
@@ -130,7 +94,8 @@ def main(_):
         # model
         model = model_lstm.TFPModel(config, is_training=True)
         logits_op = model.inference(inputs=X_ph)
-        losses_op = model.losses(logits=X_ph, labels=Y_ph)
+        losses_op = model.losses(logits=logits_op, labels=Y_ph)
+        mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
 
         # summary
         labels_summary_writer = tf.summary.FileWriter(
@@ -146,19 +111,21 @@ def main(_):
         with tf.Session() as sess:
             sess.run(init)
 
-            saver.restore(sess, FLAGS.checkpoints_dir + '-985000')
+            saver.restore(sess, FLAGS.checkpoints_dir + '-99')
             print("Successully restored!!")
 
             # testing
             test_loss_sum = 0.0
+            test_mape_sum = 0.0
             # for i, _ in enumerate(test_raw_data):
             for i in range(60*24):
                 offset = i + 60*24*4
                 current_X_batch = test_raw_data[offset:offset + 1]
                 current_Y_batch = test_label_data[offset:offset + 1]
-                predicted_value, losses_value = sess.run([logits_op, losses_op], feed_dict={
+                predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={
                     X_ph: current_X_batch, Y_ph: current_Y_batch})
                 test_loss_sum += losses_value
+                test_mape_sum += mape_value
 
                 labels_scalar_summary = tf.Summary()
                 labels_scalar_summary.value.add(
@@ -175,9 +142,11 @@ def main(_):
                 logits_summary_writer.flush()
 
             # test mean loss
-            train_mean_loss = test_loss_sum / 1440
+            test_mean_loss = test_loss_sum / (60*24)
+            test_mean_mape = test_mape_sum / (60*24)
 
-            print("testing mean loss: ", train_mean_loss)
+            print("testing mean loss: ", test_mean_loss)
+            print("testing mean mape: ", test_mean_mape*100.0, "%")
 
         # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
         # sv = Supervisor(logdir=FLAGS.checkpoints_dir)

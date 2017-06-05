@@ -34,44 +34,6 @@ tf.app.flags.DEFINE_float('decay_rate', 0.99,
 tf.app.flags.DEFINE_float('momentum', 0.9,
                           "momentum of RMSPropOptimizer")
 
-
-def read_file(filename, vec, week_list, time, week, st, ed):
-    filename = "../../VD_data/mile_base/" + filename
-    with open(filename, "rb") as binaryfile:
-        binaryfile.seek(0)
-        ptr = binaryfile.read(4)
-
-        data_per_day = 1440
-        VD_size = int.from_bytes(ptr, byteorder='little')
-        ptr = binaryfile.read(4)
-        day_max = int.from_bytes(ptr, byteorder='little')
-
-        # initialize list
-        dis = int((ed - st) * 2 + 1)
-        t = len(vec)
-        for i in range(day_max):
-            vec.append([0] * dis)
-            week_list.append([0] * dis)
-            time.append([0] * dis)
-
-        index = 0
-        for i in range(VD_size):
-
-            if st <= i / 2 and i / 2 <= ed:
-                for j in range(day_max):
-                    ptr = binaryfile.read(2)
-                    tmp = int.from_bytes(ptr, byteorder='little')
-                    vec[t + j][index] = tmp
-                    week_list[t + j][index] = (week +
-                                               int(j / data_per_day)) % 7
-                    time[t + j][index] = j % data_per_day
-                index = index + 1
-            elif ed < i / 2:
-                break
-            else:
-                binaryfile.read(2)
-
-
 class TestingConfig(object):
     """
     testing config

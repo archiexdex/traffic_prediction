@@ -9,67 +9,30 @@ import model_lstm
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('data_dir', 'data/',
+tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'checkpoints/',
                            "training checkpoints directory")
 tf.app.flags.DEFINE_string('log_dir', 'log/',
                            "summary directory")
-tf.app.flags.DEFINE_integer('batch_size', 128,
+tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 100,
                             "total training epoches")
-tf.app.flags.DEFINE_integer('hidden_size', 28,
+tf.app.flags.DEFINE_integer('hidden_size', 56,
                             "size of LSTM hidden memory")
-tf.app.flags.DEFINE_integer('rnn_layers', 2,
+tf.app.flags.DEFINE_integer('rnn_layers', 1,
                             "number of stacked lstm")
-tf.app.flags.DEFINE_integer('num_steps', 10,
+tf.app.flags.DEFINE_integer('num_steps', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_boolean('is_float32', True,
                             "data type of the LSTM state, float32 if true, float16 otherwise")
-tf.app.flags.DEFINE_float('learning_rate', 0.01,
+tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           "learning rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('decay_rate', 0.99,
                           "decay rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('momentum', 0.9,
                           "momentum of RMSPropOptimizer")
-
-
-def read_file(filename, vec, week_list, time, week, st, ed):
-    filename = "../../VD_data/mile_base/" + filename
-    with open(filename, "rb") as binaryfile:
-        binaryfile.seek(0)
-        ptr = binaryfile.read(4)
-
-        data_per_day = 1440
-        VD_size = int.from_bytes(ptr, byteorder='little')
-        ptr = binaryfile.read(4)
-        day_max = int.from_bytes(ptr, byteorder='little')
-
-        # initialize list
-        dis = int((ed - st) * 2 + 1)
-        t = len(vec)
-        for i in range(day_max):
-            vec.append([0] * dis)
-            week_list.append([0] * dis)
-            time.append([0] * dis)
-
-        index = 0
-        for i in range(VD_size):
-
-            if st <= i / 2 and i / 2 <= ed:
-                for j in range(day_max):
-                    ptr = binaryfile.read(2)
-                    tmp = int.from_bytes(ptr, byteorder='little')
-                    vec[t + j][index] = tmp
-                    week_list[t + j][index] = (week +
-                                               int(j / data_per_day)) % 7
-                    time[t + j][index] = j % data_per_day
-                index = index + 1
-            elif ed < i / 2:
-                break
-            else:
-                binaryfile.read(2)
 
 
 class TestingConfig(object):
@@ -111,26 +74,45 @@ def main(_):
         global_steps = tf.train.get_or_create_global_step(graph=graph)
 
         # read data
-        raw_data_t = np.load(FLAGS.data_dir + "raw_data_6.npy")
-        label_data_t = np.load(FLAGS.data_dir + "label_data_6.npy")
-        test_raw_data = np.load(FLAGS.data_dir + "test_raw_data_6.npy")
-        test_label_data = np.load(FLAGS.data_dir + "test_label_data_6.npy")
+        raw_data_t = np.load(FLAGS.data_dir + "batch_data_180_av_st_7_ed_21.npy")
+        label_data_t = np.load(FLAGS.data_dir + "label_data_180_av_st_7_ed_21.npy")
+        # test_raw_data = np.load(FLAGS.data_dir + "test_batch_data_av_5.npy")
+        # test_label_data = np.load(FLAGS.data_dir + "test_label_data_av_5.npy")
+
+        # select flow from [density, flow, speed, weekday, time]
+        raw_data_t = raw_data_t[:, :, :, 1]
+        label_data_t = label_data_t[:, :, 1]
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
                        label_data_t.reshape(len(label_data_t), -1)]
-        train_raw_data = concat[:, :raw_data_t.size //
-                                len(raw_data_t)].reshape(raw_data_t.shape)
-        train_label_data = concat[:, raw_data_t.size //
-                                  len(raw_data_t):].reshape(label_data_t.shape)
+        raw_data = concat[:, :raw_data_t.size //
+                          len(raw_data_t)].reshape(raw_data_t.shape)
+        label_data = concat[:, raw_data_t.size //
+                            len(raw_data_t):].reshape(label_data_t.shape)
         del raw_data_t
         del label_data_t
 
-        # select flow from [density, flow, speed, weekday, time]
-        train_raw_data = train_raw_data[:, :, :, 1]
-        train_label_data = train_label_data[:, :, 1]
-        test_raw_data = test_raw_data[:, :, :, 1]
-        test_label_data = test_label_data[:, :, 1]
+        np.random.shuffle(concat)
+
+        train_raw_data_t, test_raw_data = np.split(
+            raw_data, [raw_data.shape[0] * 9 // 10])
+        train_label_data_t, test_label_data = np.split(
+            label_data, [label_data.shape[0] * 9 // 10])
+
+        # np.save("test_batch_data_180_av_st_7_ed_21", test_raw_data)
+        # np.save("test_label_data_180_av_st_7_ed_21", test_label_data)
+        # exit('saved')
+
+        # concat for later shuffle
+        concat = np.c_[train_raw_data_t.reshape(len(train_raw_data_t), -1),
+                       train_label_data_t.reshape(len(train_label_data_t), -1)]
+        train_raw_data = concat[:, :train_raw_data_t.size //
+                                len(train_raw_data_t)].reshape(train_raw_data_t.shape)
+        train_label_data = concat[:, train_raw_data_t.size //
+                                  len(train_raw_data_t):].reshape(train_label_data_t.shape)
+        del train_raw_data_t
+        del train_label_data_t
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
@@ -147,11 +129,14 @@ def main(_):
         logits_op = model.inference(inputs=X_ph)
         loss_op = model.losses(logits=logits_op, labels=Y_ph)
         train_op = model.train(loss=loss_op, global_step=global_steps)
+        mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
 
         # summary
         merged_op = tf.summary.merge_all()
-        train_summary_writer = tf.summary.FileWriter(FLAGS.log_dir + 'train', graph=graph)
-        test_summary_writer = tf.summary.FileWriter(FLAGS.log_dir + 'test', graph=graph)
+        train_summary_writer = tf.summary.FileWriter(
+            FLAGS.log_dir + 'train', graph=graph)
+        test_summary_writer = tf.summary.FileWriter(
+            FLAGS.log_dir + 'test', graph=graph)
 
         init = tf.global_variables_initializer()
         # saver
@@ -161,7 +146,7 @@ def main(_):
         with tf.Session() as sess:
             sess.run(init)
             for epoch_steps in range(FLAGS.total_epoches):
-                # shuffle
+                # # shuffle
                 np.random.shuffle(concat)
 
                 # training
@@ -179,13 +164,15 @@ def main(_):
 
                 # testing
                 test_loss_sum = 0.0
+                mape_loss_sum = 0.0
                 test_batches_amount = len(test_raw_data) // FLAGS.batch_size
                 for i in range(test_batches_amount):
                     current_X_batch = test_raw_data[i:i + FLAGS.batch_size]
                     current_Y_batch = test_label_data[i:i + FLAGS.batch_size]
-                    test_loss_value = sess.run(loss_op, feed_dict={
+                    test_loss_value, mape_loss_value = sess.run([loss_op, mape_op], feed_dict={
                         X_ph: current_X_batch, Y_ph: current_Y_batch})
                     test_loss_sum += test_loss_value
+                    mape_loss_sum += mape_loss_value
 
                 # train mean ephoch loss
                 train_mean_loss = train_loss_sum / train_batches_amount
@@ -198,20 +185,24 @@ def main(_):
 
                 # test mean ephoch loss
                 test_mean_loss = test_loss_sum / test_batches_amount
+                mape_mean = (mape_loss_sum / test_batches_amount) * 100.0
                 test_scalar_summary = tf.Summary()
                 test_scalar_summary.value.add(
                     simple_value=test_mean_loss, tag="mean loss")
+                test_scalar_summary.value.add(
+                    simple_value=mape_mean, tag="mean mape (%)")
                 test_summary_writer.add_summary(
                     test_scalar_summary, global_step=steps)
                 test_summary_writer.flush()
 
                 print("ephoches: ", epoch_steps, "trainng loss: ", train_mean_loss,
-                      "testing loss: ", test_mean_loss)
+                      "testing loss: ", test_mean_loss, "testing mape: ", mape_mean, "%")
 
-            # Save the variables to disk.
-            save_path = saver.save(
-                sess, FLAGS.checkpoints_dir, global_step=steps)
-            print("Model saved in file: %s" % save_path)
+                if (epoch_steps + 1) % 50 == 0:
+                    # Save the variables to disk.
+                    save_path = saver.save(
+                        sess, FLAGS.checkpoints_dir, global_step=epoch_steps)
+                    print("Model saved in file: %s" % save_path)
 
         # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
         # sv = Supervisor(logdir=FLAGS.checkpoints_dir)

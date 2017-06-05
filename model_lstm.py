@@ -73,7 +73,7 @@ class TFPModel(object):
         return outputs[-1]
 
     def lstm_cell(self):
-        return rnn.LSTMCell(self.hidden_size, use_peepholes=False, initializer=None, num_proj=28,
+        return rnn.LSTMCell(self.hidden_size, use_peepholes=True, initializer=None, num_proj=28,
                             forget_bias=1.0, state_is_tuple=True,
                             activation=tf.tanh, reuse=tf.get_variable_scope().reuse)
 
@@ -85,11 +85,22 @@ class TFPModel(object):
         """
         with tf.name_scope('l2_loss'):
             losses = tf.squared_difference(logits, labels)
-            print(losses)
             l2_loss = tf.reduce_mean(losses)
-            print(l2_loss)
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
+
+    def MAPE(self, logits, labels):
+        """
+        Param:
+            logits:
+            labels:
+        """
+        with tf.name_scope('MAPE'):
+            diff = tf.abs(tf.subtract(logits, labels))
+            norn = tf.divide(diff, labels)
+            mape = tf.reduce_mean(norn)
+        tf.summary.scalar('MAPE', mape)
+        return mape
 
     def train(self, loss, global_step=None):
         """

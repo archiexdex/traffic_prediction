@@ -1,6 +1,13 @@
 # data
 mile_base/
 *.npy
+# log
+log/
+test_log/
+# saved model
+checkpoints/
+# records
+result/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

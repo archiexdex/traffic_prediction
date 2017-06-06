@@ -8,6 +8,7 @@ test_log/
 checkpoints/
 # records
 result/
+bkp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

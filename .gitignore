@@ -2,6 +2,9 @@
 mile_base/
 *.npy
 # log
+backlog/
+PPbacklog/
+QQbacklog/
 log/
 test_log/
 # saved model

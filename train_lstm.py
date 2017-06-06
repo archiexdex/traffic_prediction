@@ -8,24 +8,24 @@ import tensorflow as tf
 import model_lstm
 
 
-raw_data_name = "batch_no_over_data_mile_15_32_total_60_predict_1_5.npy"
-label_data_name = "label_no_over_data_mile_15_32_total_60_predict_1_5.npy"
+raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'PPbacklog/' + raw_data_name[6:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog/' + raw_data_name[6:-4] + '/log/',
+tf.app.flags.DEFINE_string('log_dir', 'PPbacklog/' + raw_data_name[6:-4] + '/log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 100,
                             "total training epoches")
-tf.app.flags.DEFINE_integer('hidden_size', 70,
+tf.app.flags.DEFINE_integer('hidden_size', 56,
                             "size of LSTM hidden memory")
-tf.app.flags.DEFINE_integer('vd_amount', 35,
+tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
 tf.app.flags.DEFINE_integer('rnn_layers', 1,
                             "number of stacked lstm")

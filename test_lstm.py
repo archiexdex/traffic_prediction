@@ -7,24 +7,24 @@ import numpy as np
 import tensorflow as tf
 import model_lstm
 
-raw_data_name = "test_batch_no_over_data_mile_15_32_total_60_predict_1_5.npy"
-label_data_name = "test_label_no_over_data_mile_15_32_total_60_predict_1_5.npy"
+raw_data_name = "test_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+label_data_name = "test_label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog/' + raw_data_name[11:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'PPbacklog/' + raw_data_name[11:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog/' + raw_data_name[11:-4] + '/test_log/',
+tf.app.flags.DEFINE_string('log_dir', 'PPbacklog/' + raw_data_name[11:-4] + '/test_log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 0,
                             "total training epoches")
-tf.app.flags.DEFINE_integer('hidden_size', 70,
+tf.app.flags.DEFINE_integer('hidden_size', 56,
                             "size of LSTM hidden memory")
-tf.app.flags.DEFINE_integer('vd_amount', 35,
+tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
 tf.app.flags.DEFINE_integer('rnn_layers', 1,
                             "number of stacked lstm")
@@ -52,6 +52,7 @@ class TestingConfig(object):
         self.batch_size = FLAGS.batch_size
         self.total_epoches = FLAGS.total_epoches
         self.hidden_size = FLAGS.hidden_size
+        self.vd_amount = FLAGS.vd_amount
         self.rnn_layers = FLAGS.rnn_layers
         self.num_steps = FLAGS.num_steps
         self.is_float32 = FLAGS.is_float32
@@ -66,6 +67,7 @@ class TestingConfig(object):
         print("batch_size:", self.batch_size)
         print("total_epoches:", self.total_epoches)
         print("hidden_size:", self.hidden_size)
+        print("vd_amount:", self.vd_amount)
         print("rnn_layers:", self.rnn_layers)
         print("num_steps:", self.num_steps)
         print("is_float32:", self.is_float32)
@@ -83,6 +85,7 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time]
         test_raw_data = test_raw_data[:, :, :, 1]
+        temp = test_label_data[:, :, :]
         test_label_data = test_label_data[:, :, 1]
 
         # placeholder
@@ -121,33 +124,46 @@ def main(_):
             # testing
             test_loss_sum = 0.0
             test_mape_sum = 0.0
-            for i in range(60 * 24):
-                offset = i + 60 * 24 * 4
-                current_X_batch = test_raw_data[offset:offset + 1]
-                current_Y_batch = test_label_data[offset:offset + 1]
+            flg = True
+            for i, _ in enumerate(test_label_data):
+                current_X_batch = test_raw_data[i:i + 1]
+                current_Y_batch = test_label_data[i:i + 1]
                 predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={
                     X_ph: current_X_batch, Y_ph: current_Y_batch})
                 test_loss_sum += losses_value
                 test_mape_sum += mape_value
 
-                for vd_idx in range(28):
-                    labels_scalar_summary = tf.Summary()
-                    labels_scalar_summary.value.add(
-                        simple_value=current_Y_batch[0][vd_idx], tag="cmp" + str(vd_idx))
-                    labels_summary_writer.add_summary(
-                        labels_scalar_summary, global_step=i)
-                    labels_summary_writer.flush()
+                # if temp[i][0][3] == 4:
+                #     flg = False
 
-                    logits_scalar_summary = tf.Summary()
-                    logits_scalar_summary.value.add(
-                        simple_value=predicted_value[0][vd_idx], tag="cmp" + str(vd_idx))
-                    logits_summary_writer.add_summary(
-                        logits_scalar_summary, global_step=i)
-                    logits_summary_writer.flush()
+                # if flg and temp[i][0][3] == 3:
+                #     # if i < 60 * 24 * 4:
+
+                #     current_X_batch = test_raw_data[i:i + 1]
+                #     current_Y_batch = test_label_data[i:i + 1]
+                #     predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={
+                #         X_ph: current_X_batch, Y_ph: current_Y_batch})
+                #     test_loss_sum += losses_value
+                #     test_mape_sum += mape_value
+
+                #     for vd_idx in range(FLAGS.vd_amount):
+                #         labels_scalar_summary = tf.Summary()
+                #         labels_scalar_summary.value.add(
+                #             simple_value=current_Y_batch[0][vd_idx], tag="cmp" + str(vd_idx))
+                #         labels_summary_writer.add_summary(
+                #             labels_scalar_summary, global_step=i)
+                #         labels_summary_writer.flush()
+
+                #         logits_scalar_summary = tf.Summary()
+                #         logits_scalar_summary.value.add(
+                #             simple_value=predicted_value[0][vd_idx], tag="cmp" + str(vd_idx))
+                #         logits_summary_writer.add_summary(
+                #             logits_scalar_summary, global_step=i)
+                #         logits_summary_writer.flush()
 
             # test mean loss
-            test_mean_loss = test_loss_sum / (60 * 24)
-            test_mean_mape = test_mape_sum / (60 * 24)
+            test_mean_loss = test_loss_sum / len(test_label_data)
+            test_mean_mape = test_mape_sum / len(test_label_data)
 
             print("testing mean loss: ", test_mean_loss)
             print("testing mean mape: ", test_mean_mape * 100.0, "%")

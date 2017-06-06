@@ -38,7 +38,7 @@ class TFPModel(object):
         """
         with tf.variable_scope('reshape') as scope:
             reshaped_input = tf.reshape(inputs, [
-                                        self.batch_size, self.num_steps, self.vd_amount], name=scope.name)
+                                        self.batch_size, self.num_steps, self.vd_amount * 5], name=scope.name)
             # print ("reshape:", reshaped_input)
 
         with tf.variable_scope('lstm') as scope:

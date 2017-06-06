@@ -121,6 +121,7 @@ def main(_):
             # testing
             test_loss_sum = 0.0
             test_mape_sum = 0.0
+            # for i, _ in enumerate(test_raw_data):
             for i in range(60 * 24):
                 offset = i + 60 * 24 * 4
                 current_X_batch = test_raw_data[offset:offset + 1]

@@ -85,8 +85,7 @@ def main(_):
         raw_data_t = np.load(FLAGS.data_dir + raw_data_name)
         label_data_t = np.load(FLAGS.data_dir + label_data_name)
 
-        # select flow from [density, flow, speed, weekday, time]
-        raw_data_t = raw_data_t[:, :, :, 1]
+        # predict flow only, so select flow from [density, flow, speed, weekday, time]
         label_data_t = label_data_t[:, :, 1]
 
         # concat for later shuffle
@@ -118,7 +117,7 @@ def main(_):
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
+                              FLAGS.batch_size, FLAGS.num_steps, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.vd_amount], name='label_data')
 

@@ -36,6 +36,10 @@ class TFPModel(object):
         """
         Param:
         """
+        with tf.variable_scope('reshape') as scope:
+            reshaped_input = tf.reshape(inputs, [
+                                        self.batch_size, self.num_steps, self.vd_amount * 5], name=scope.name)
+            # print ("reshape:", reshaped_input)
 
         with tf.variable_scope('lstm') as scope:
             cells = rnn.MultiRNNCell(
@@ -48,7 +52,7 @@ class TFPModel(object):
             # print ("last_logit:", outputs[:, -1, :])
 
             ## static method
-            lstm_input = tf.unstack(inputs, num=self.num_steps, axis=1)
+            lstm_input = tf.unstack(reshaped_input, num=self.num_steps, axis=1)
             outputs, states = rnn.static_rnn(
                 cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
             # print ("last_logit:", outputs[-1])
@@ -94,10 +98,7 @@ class TFPModel(object):
         """
         with tf.name_scope('MAPE'):
             diff = tf.abs(tf.subtract(logits, labels))
-            con_less = tf.less(labels, 1)
-            norn_less = tf.divide(diff, 1)
-            norn_normal = tf.divide(diff, labels)
-            norn = tf.where(con_less, norn_less, norn_normal)
+            norn = tf.divide(diff, labels)
             mape = tf.reduce_mean(norn)
         tf.summary.scalar('MAPE', mape)
         return mape

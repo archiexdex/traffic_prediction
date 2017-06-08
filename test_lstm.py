@@ -7,8 +7,8 @@ import numpy as np
 import tensorflow as tf
 import model_lstm
 
-raw_data_name = "test_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
-label_data_name = "test_label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+raw_data_name = "test_batch_no_over_data_mile_15_32_total_60_predict_1_5.npy"
+label_data_name = "test_label_no_over_data_mile_15_32_total_60_predict_1_5.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -16,15 +16,15 @@ tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/s
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[11:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[11:-4] + '/test_log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[11:-4] + '/test_log_0/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 0,
                             "total training epoches")
-tf.app.flags.DEFINE_integer('hidden_size', 56,
+tf.app.flags.DEFINE_integer('hidden_size', 70,
                             "size of LSTM hidden memory")
-tf.app.flags.DEFINE_integer('vd_amount', 28,
+tf.app.flags.DEFINE_integer('vd_amount', 35,
                             "vd_amount")
 tf.app.flags.DEFINE_integer('rnn_layers', 1,
                             "number of stacked lstm")
@@ -40,6 +40,8 @@ tf.app.flags.DEFINE_float('momentum', 0,
                           "momentum of RMSPropOptimizer")
 tf.app.flags.DEFINE_integer('day', None,
                             "day")
+tf.app.flags.DEFINE_integer('interval', 5,
+                            "interval")
 
 
 class TestingConfig(object):
@@ -135,25 +137,24 @@ def main(_):
                 test_mape_sum = 0.0
                 amount_counter = 0
                 for i, _ in enumerate(test_label_data):
-                    print(test_label_all[i][0][5])
                     if test_label_all[i][0][5] == FLAGS.day:
                         interval_id = 0
                         offset = i
-                        while interval_id < (1440/5):
-                            if test_label_all[offset][0][4]//5 != interval_id:
+                        while interval_id < (1440//FLAGS.interval):
+                            if test_label_all[offset][0][4]//FLAGS.interval != interval_id:
                                 for vd_idx in range(FLAGS.vd_amount):
                                     labels_scalar_summary = tf.Summary()
                                     labels_scalar_summary.value.add(
                                         simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
                                     labels_summary_writer.add_summary(
-                                        labels_scalar_summary, global_step=interval_id*5)
+                                        labels_scalar_summary, global_step=interval_id*FLAGS.interval)
                                     labels_summary_writer.flush()
 
                                     logits_scalar_summary = tf.Summary()
                                     logits_scalar_summary.value.add(
                                         simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
                                     logits_summary_writer.add_summary(
-                                        logits_scalar_summary, global_step=interval_id*5)
+                                        logits_scalar_summary, global_step=interval_id*FLAGS.interval)
                                     logits_summary_writer.flush()
                             else:
                                 offset += 1
@@ -170,22 +171,24 @@ def main(_):
                                     labels_scalar_summary.value.add(
                                         simple_value=current_Y_batch[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
                                     labels_summary_writer.add_summary(
-                                        labels_scalar_summary, global_step=interval_id*5)
+                                        labels_scalar_summary, global_step=interval_id*FLAGS.interval)
                                     labels_summary_writer.flush()
 
                                     logits_scalar_summary = tf.Summary()
                                     logits_scalar_summary.value.add(
                                         simple_value=predicted_value[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
                                     logits_summary_writer.add_summary(
-                                        logits_scalar_summary, global_step=interval_id*5)
+                                        logits_scalar_summary, global_step=interval_id*FLAGS.interval)
                                     logits_summary_writer.flush()
 
                             interval_id += 1
                             if test_label_all[offset][0][4] < 100 and interval_id > 200:
                                 break
-
+                        
+                        print ("WEEK:", test_label_all[i][0][3])
                         break
 
+                    
                 # test mean loss
                 test_mean_loss = test_loss_sum / amount_counter
                 test_mean_mape = test_mape_sum / amount_counter

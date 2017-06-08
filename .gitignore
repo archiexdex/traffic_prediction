@@ -3,6 +3,7 @@ mile_base/
 *.npy
 # log
 backlog/
+backlog_new/
 PPbacklog/
 QQbacklog/
 log/
@@ -11,7 +12,6 @@ test_log/
 checkpoints/
 # records
 result/
-bkp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

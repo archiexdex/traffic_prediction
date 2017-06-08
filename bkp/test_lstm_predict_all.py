@@ -14,9 +14,9 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog/' + raw_data_name[11:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[11:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog/' + raw_data_name[11:-4] + '/test_predict_log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[11:-4] + '/test_log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")

@@ -14,9 +14,9 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog/' + raw_data_name[11:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[11:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog/' + raw_data_name[11:-4] + '/test_predict_triple_log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[11:-4] + '/test_log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
@@ -124,20 +124,18 @@ def main(_):
             # testing
             tp1_result = None
             tp2_result = None
-            tp3_result = None
             next_test_raw_data = None
             test_loss_sum = 0.0
             test_mape_sum = 0.0
             flg = True
-            counter = 0
             for i in range(len(test_label_data) - 1):
 
                 if temp[i][0][3] == 3:
                     flg = False
 
                 if flg and temp[i][0][3] == 2:
-                    counter += 1
-                    if tp1_result is None or tp2_result is None or tp3_result is None:
+
+                    if tp1_result is None or tp2_result is None:
                         current_X_batch = test_raw_data[i:i + 1]
                     else:
                         current_X_batch = next_test_raw_data
@@ -153,12 +151,11 @@ def main(_):
                         predicted_value_np, [1, 1, FLAGS.vd_amount])
 
                     tp1_result = tp2_result
-                    tp2_result = tp3_result
-                    tp3_result = predicted_value_np
+                    tp2_result = predicted_value_np
 
-                    if tp1_result is not None and tp2_result is not None and tp3_result is not None:
+                    if tp1_result is not None and tp2_result is not None:
                         next_test_raw_data = np.concatenate(
-                            [test_raw_data[i + 1:i + 2, :-3, :], tp1_result, tp2_result, tp3_result], axis=1)
+                            [test_raw_data[i + 1:i + 2, :-2, :], tp1_result, tp2_result], axis=1)
 
                     for vd_idx in range(FLAGS.vd_amount):
                         labels_scalar_summary = tf.Summary()
@@ -176,8 +173,8 @@ def main(_):
                         logits_summary_writer.flush()
 
             # test mean loss
-            test_mean_loss = test_loss_sum / counter
-            test_mean_mape = test_mape_sum / counter
+            test_mean_loss = test_loss_sum / len(test_label_data)
+            test_mean_mape = test_mape_sum / len(test_label_data)
 
             print("testing mean loss: ", test_mean_loss)
             print("testing mean mape: ", test_mean_mape * 100.0, "%")

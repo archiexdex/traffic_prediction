@@ -5,19 +5,15 @@ from __future__ import print_function
 import os
 import numpy as np
 import tensorflow as tf
-import model_lstm
-
-
-raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_6_10.npy"
-label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_6_10.npy"
+import model_convlstm
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[6:-4] + '/log/',
+tf.app.flags.DEFINE_string('log_dir', 'log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
@@ -25,8 +21,6 @@ tf.app.flags.DEFINE_integer('total_epoches', 100,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('hidden_size', 56,
                             "size of LSTM hidden memory")
-tf.app.flags.DEFINE_integer('vd_amount', 28,
-                            "vd_amount")
 tf.app.flags.DEFINE_integer('rnn_layers', 1,
                             "number of stacked lstm")
 tf.app.flags.DEFINE_integer('num_steps', 12,
@@ -53,7 +47,6 @@ class TestingConfig(object):
         self.batch_size = FLAGS.batch_size
         self.total_epoches = FLAGS.total_epoches
         self.hidden_size = FLAGS.hidden_size
-        self.vd_amount = FLAGS.vd_amount
         self.rnn_layers = FLAGS.rnn_layers
         self.num_steps = FLAGS.num_steps
         self.is_float32 = FLAGS.is_float32
@@ -68,7 +61,6 @@ class TestingConfig(object):
         print("batch_size:", self.batch_size)
         print("total_epoches:", self.total_epoches)
         print("hidden_size:", self.hidden_size)
-        print("vd_amount:", self.vd_amount)
         print("rnn_layers:", self.rnn_layers)
         print("num_steps:", self.num_steps)
         print("is_float32:", self.is_float32)
@@ -82,11 +74,12 @@ def main(_):
         global_steps = tf.train.get_or_create_global_step(graph=graph)
 
         # read data
-        raw_data_t = np.load(FLAGS.data_dir + raw_data_name)
-        label_data_t = np.load(FLAGS.data_dir + label_data_name)
+        raw_data_t = np.load(
+            FLAGS.data_dir + "batch_data_180_av_st_7_ed_21.npy")
+        label_data_t = np.load(
+            FLAGS.data_dir + "label_data_180_av_st_7_ed_21.npy")
 
         # select flow from [density, flow, speed, weekday, time]
-        raw_data_t = raw_data_t[:, :, :, 1]
         label_data_t = label_data_t[:, :, 1]
 
         # concat for later shuffle
@@ -102,9 +95,13 @@ def main(_):
         np.random.shuffle(concat)
 
         train_raw_data_t, test_raw_data = np.split(
-            raw_data, [raw_data.shape[0] * 8 // 9])
+            raw_data, [raw_data.shape[0] * 9 // 10])
         train_label_data_t, test_label_data = np.split(
-            label_data, [label_data.shape[0] * 8 // 9])
+            label_data, [label_data.shape[0] * 9 // 10])
+
+        # np.save("test_batch_data_180_av_st_7_ed_21_5dims", test_raw_data)
+        # np.save("test_label_data_180_av_st_7_ed_21", test_label_data)
+        # exit('saved')
 
         # concat for later shuffle
         concat = np.c_[train_raw_data_t.reshape(len(train_raw_data_t), -1),
@@ -118,16 +115,16 @@ def main(_):
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
+                              FLAGS.batch_size, FLAGS.num_steps, 28, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.vd_amount], name='label_data')
+                              FLAGS.batch_size, 28], name='label_data')
 
         # config setting
         config = TestingConfig()
         config.show()
 
         # model
-        model = model_lstm.TFPModel(config, is_training=True)
+        model = model_convlstm.TFPModel(config, is_training=True)
         logits_op = model.inference(inputs=X_ph)
         loss_op = model.losses(logits=logits_op, labels=Y_ph)
         train_op = model.train(loss=loss_op, global_step=global_steps)

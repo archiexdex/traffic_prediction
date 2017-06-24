@@ -121,6 +121,7 @@ if len(raw_data) == 0:
     
     c = 0
     p = []
+    b = []
     print("Removing illegal data...")
 
     for i in raw_data:
@@ -133,17 +134,25 @@ if len(raw_data) == 0:
                 flg = True
                 break
         if flg:
-            p.append(c)
+            b.append(c)
+        if b.count > 29:
+            for i in b:
+                p.append(i)
+            b = []
         print(c)
         c += 1
     
+    if b.count > 29:
+        for i in b:
+            p.append(i)
+        b = []
+
     for i in p:
         raw_data[i] = [-1,-1,-1,-1,-1]
     np.save("fix_raw_data",raw_data)
-    # x = np.delete(raw_data, p, 0)
-    # np.save("fix_raw_data",x)
-    # raw_data = x
-    # del x
+
+    del b
+    del p
     del c
 
 else:
@@ -155,7 +164,9 @@ print("start to distribute data...")
 batch_data = []
 label_data = []
 
-for i in range(len(raw_data) - time_preried - predict_time):
+i = 0
+# for i in range(len(raw_data) - time_preried - predict_time):
+while i < len(raw_data) - time_preried - predict_time:
     tmp = raw_data[i:i+time_preried]
     ret = []
     is_good = 0
@@ -179,10 +190,11 @@ for i in range(len(raw_data) - time_preried - predict_time):
         j += predict_time
     
     if is_good > 0:
+        i += 1
         continue
 
     # for label data
-    tmp = raw_data[i+time_preried+start_predict:i+time_preried+start_predict+predict_time]
+    tmp = raw_data[i+time_preried+start_predict-1:i+time_preried+start_predict+predict_time]
     ret1 = []
 
     j = 0
@@ -201,10 +213,17 @@ for i in range(len(raw_data) - time_preried - predict_time):
         ret1.append(sump)
                 
         j += predict_time
-    
-    if is_good == 0:
+
+    if is_good > 0:
+        i += 1
+        continue
+    else:
+        print(ret1)
+        input("@@")
         batch_data.append(ret)
-        label_data.append(ret1[0])
+        label_data.append(ret1)
+        i += time_preried
+    
 
 
     print(i)

@@ -5,7 +5,12 @@ predict_time = 5
 num_steps = 12 
 time_preried = predict_time * num_steps
 
+st = 15
+ed = 28.5
+
 start_predict = 1
+
+is_over = 0
 
 def read_file(filename, vec, week_list, time_list, week, st, ed):
     filename = "../../VD_data/mile_base/" + filename
@@ -48,8 +53,9 @@ def read_file(filename, vec, week_list, time_list, week, st, ed):
 
 raw_data = []
 
+
 try:
-     raw_data = np.load("fix_raw_data.npy")
+     raw_data = np.load("fix_raw_data_"+str(st)+"_"+str(ed)+".npy")
 except:
     pass
 
@@ -72,19 +78,19 @@ if len(raw_data) == 0:
 
         # Read files
         print("Reading 2012...")
-        read_file("density_N5_N_2012_1_12.bin", density_list, [], [], 0, 15, 28.5)
-        read_file("flow_N5_N_2012_1_12.bin"   , flow_list, [], [], 0, 15, 28.5)
-        read_file("speed_N5_N_2012_1_12.bin", speed_list, week_list, time_list, 0, 15, 28.5)
+        read_file("density_N5_N_2012_1_12.bin", density_list, [], [], 0, st, ed)
+        read_file("flow_N5_N_2012_1_12.bin"   , flow_list, [], [], 0, st, ed)
+        read_file("speed_N5_N_2012_1_12.bin", speed_list, week_list, time_list, 0, st, ed)
 
         print("Reading 2013...")
-        read_file("density_N5_N_2013_1_12.bin", density_list, [], [], 2, 15, 28.5)
-        read_file("flow_N5_N_2013_1_12.bin"   , flow_list, [], [], 2, 15, 28.5)
-        read_file("speed_N5_N_2013_1_12.bin", speed_list, week_list, time_list, 2, 15, 28.5)
+        read_file("density_N5_N_2013_1_12.bin", density_list, [], [], 2, st, ed)
+        read_file("flow_N5_N_2013_1_12.bin"   , flow_list, [], [], 2, st, ed)
+        read_file("speed_N5_N_2013_1_12.bin", speed_list, week_list, time_list, 2, st, ed)
 
         print("Reading 2014...")
-        read_file("density_N5_N_2014_1_12.bin", density_list, [], [], 3, 15, 28.5)
-        read_file("flow_N5_N_2014_1_12.bin"   , flow_list, [], [], 3, 15, 28.5)
-        read_file("speed_N5_N_2014_1_12.bin", speed_list, week_list, time_list, 3, 15, 28.5)
+        read_file("density_N5_N_2014_1_12.bin", density_list, [], [], 3, st, ed)
+        read_file("flow_N5_N_2014_1_12.bin"   , flow_list, [], [], 3, st, ed)
+        read_file("speed_N5_N_2014_1_12.bin", speed_list, week_list, time_list, 3, st, ed)
 
         # fix data
         # data[i][10] are always 0 and data[i][13] in 2012 are always 0
@@ -170,7 +176,6 @@ while i < len(raw_data) - time_preried - predict_time:
     tmp = raw_data[i:i+time_preried]
     ret = []
     is_good = 0
-
     # for training data
     j = 0
     while j < len(tmp):
@@ -188,13 +193,13 @@ while i < len(raw_data) - time_preried - predict_time:
         ret.append(sump)
                 
         j += predict_time
-    
+
     if is_good > 0:
         i += 1
         continue
 
     # for label data
-    tmp = raw_data[i+time_preried+start_predict-1:i+time_preried+start_predict+predict_time]
+    tmp = raw_data[i+time_preried+start_predict-1:i+time_preried+start_predict+predict_time-1]
     ret1 = []
 
     j = 0
@@ -218,21 +223,22 @@ while i < len(raw_data) - time_preried - predict_time:
         i += 1
         continue
     else:
-        print(ret1)
-        input("@@")
         batch_data.append(ret)
-        label_data.append(ret1)
+        label_data.append(ret1[0])
         i += time_preried
     
-
-
     print(i)
 
 
 print(len(batch_data))
 
-np.save("batch_data_"+str(time_preried)+"_av_st_"+str(start_predict)+"_ed_"+str(start_predict+predict_time-1), batch_data)
-np.save("label_data_"+str(time_preried)+"_av_st_"+str(start_predict)+"_ed_"+str(start_predict+predict_time-1), label_data)
+if is_over == 1:
+    np.save("batch_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
+    np.save("label_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
+
+else:
+    np.save("batch_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
+    np.save("label_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
 
 
 print("Finish")

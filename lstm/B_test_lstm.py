@@ -5,11 +5,11 @@ from __future__ import print_function
 import os
 import numpy as np
 import tensorflow as tf
-import model_conv
+import model_lstm
 
-raw_data_name = "test_batch_no_over_data_mile_15_32_total_60_predict_1_5.npy"
-label_data_name = "test_label_no_over_data_mile_15_32_total_60_predict_1_5.npy"
-
+raw_data_name = "test_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+label_data_name = "test_label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+  
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
@@ -22,10 +22,16 @@ tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 0,
                             "total training epoches")
+tf.app.flags.DEFINE_integer('hidden_size', 56,
+                            "size of LSTM hidden memory")
 tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
-tf.app.flags.DEFINE_integer('total_interval', 12,
+tf.app.flags.DEFINE_integer('rnn_layers', 1,
+                            "number of stacked lstm")
+tf.app.flags.DEFINE_integer('num_steps', 12,
                             "total steps of time")
+tf.app.flags.DEFINE_boolean('is_float32', True,
+                            "data type of the LSTM state, float32 if true, float16 otherwise")
 tf.app.flags.DEFINE_float('learning_rate', 0,
                           "learning rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('decay_rate', 0,
@@ -52,7 +58,7 @@ class TestingConfig(object):
         self.hidden_size = FLAGS.hidden_size
         self.vd_amount = FLAGS.vd_amount
         self.rnn_layers = FLAGS.rnn_layers
-        self.total_interval = FLAGS.total_interval
+        self.num_steps = FLAGS.num_steps
         self.is_float32 = FLAGS.is_float32
         self.learning_rate = FLAGS.learning_rate
         self.decay_rate = FLAGS.decay_rate
@@ -67,7 +73,7 @@ class TestingConfig(object):
         print("hidden_size:", self.hidden_size)
         print("vd_amount:", self.vd_amount)
         print("rnn_layers:", self.rnn_layers)
-        print("total_interval:", self.total_interval)
+        print("num_steps:", self.num_steps)
         print("is_float32:", self.is_float32)
         print("learning_rate:", self.learning_rate)
         print("decay_rate:", self.decay_rate)
@@ -77,18 +83,18 @@ class TestingConfig(object):
 def main(_):
     with tf.get_default_graph().as_default() as graph:
 
-        # read data [amount, total_interval, mileage, dfswt] == [None, 10, 28, 5]
+        # read data [amount, num_steps, mileage, dfswt] == [None, 10, 28, 5]
         test_raw_data = np.load(FLAGS.data_dir + raw_data_name)
         test_label_data = np.load(FLAGS.data_dir + label_data_name)
 
-        # select all from [density, flow, speed, weekday, time, day]
-        test_raw_data = test_raw_data[:, :, :, :]
+        # select flow from [density, flow, speed, weekday, time, day]
+        test_raw_data = test_raw_data[:, :, :, 1]
         test_label_all = test_label_data[:, :, :]
         test_label_data = test_label_data[:, :, 1]
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              None, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
+                              None, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
                               None, FLAGS.vd_amount], name='label_data')
 

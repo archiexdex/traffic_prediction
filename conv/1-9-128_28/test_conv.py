@@ -5,7 +5,7 @@ from __future__ import print_function
 import os
 import numpy as np
 import tensorflow as tf
-import model_lstm
+import model_conv
 
 raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
@@ -22,16 +22,10 @@ tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 0,
                             "total training epoches")
-tf.app.flags.DEFINE_integer('hidden_size', 56,
-                            "size of LSTM hidden memory")
 tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
-tf.app.flags.DEFINE_integer('rnn_layers', 1,
-                            "number of stacked lstm")
-tf.app.flags.DEFINE_integer('num_steps', 12,
+tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
-tf.app.flags.DEFINE_boolean('is_float32', True,
-                            "data type of the LSTM state, float32 if true, float16 otherwise")
 tf.app.flags.DEFINE_float('learning_rate', 0,
                           "learning rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('decay_rate', 0,
@@ -55,11 +49,8 @@ class TestingConfig(object):
         self.log_dir = FLAGS.log_dir
         self.batch_size = FLAGS.batch_size
         self.total_epoches = FLAGS.total_epoches
-        self.hidden_size = FLAGS.hidden_size
         self.vd_amount = FLAGS.vd_amount
-        self.rnn_layers = FLAGS.rnn_layers
-        self.num_steps = FLAGS.num_steps
-        self.is_float32 = FLAGS.is_float32
+        self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
         self.decay_rate = FLAGS.decay_rate
         self.momentum = FLAGS.momentum
@@ -70,11 +61,8 @@ class TestingConfig(object):
         print("log_dir:", self.log_dir)
         print("batch_size:", self.batch_size)
         print("total_epoches:", self.total_epoches)
-        print("hidden_size:", self.hidden_size)
         print("vd_amount:", self.vd_amount)
-        print("rnn_layers:", self.rnn_layers)
-        print("num_steps:", self.num_steps)
-        print("is_float32:", self.is_float32)
+        print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
         print("decay_rate:", self.decay_rate)
         print("momentum:", self.momentum)
@@ -83,18 +71,22 @@ class TestingConfig(object):
 def main(_):
     with tf.get_default_graph().as_default() as graph:
 
-        # read data [amount, num_steps, mileage, dfswt] == [None, 10, 28, 5]
+        # np saver
+        raw_loss = []
+
+        # read data [amount, total_interval, mileage, dfswt] == [None, 10, 28, 5]
         test_raw_data = np.load(FLAGS.data_dir + raw_data_name)
         test_label_data = np.load(FLAGS.data_dir + label_data_name)
 
-        # select flow from [density, flow, speed, weekday, time, day]
-        test_raw_data = test_raw_data[:, :, :, 1]
+        # select all from [density, flow, speed, weekday, time, day]
+        test_raw_data = test_raw_data[:, :, :, :5]
+        batch_size_test = test_raw_data.shape[0]
         test_label_all = test_label_data[:, :, :]
         test_label_data = test_label_data[:, :, 1]
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              None, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
+                              None, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
                               None, FLAGS.vd_amount], name='label_data')
 
@@ -103,17 +95,15 @@ def main(_):
         config.show()
 
         # model
-        model = model_lstm.TFPModel(config, is_training=True)
+        model = model_conv.TFPModel(config, is_training=True)
         logits_op = model.inference(inputs=X_ph)
         losses_op = model.losses(logits=logits_op, labels=Y_ph)
+        l2_losses_op = model.l2_losses(logits=logits_op, labels=Y_ph)
         mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
 
         init = tf.global_variables_initializer()
         # saver
         saver = tf.train.Saver()
-
-        # np saver
-        loss_saver = []
 
         # Session
         with tf.Session() as sess:
@@ -121,21 +111,25 @@ def main(_):
 
             saver.restore(sess, FLAGS.checkpoints_dir + '-99')
             print("Successully restored!!")
-            for i, _ in enumerate(test_label_data):
-                data  = test_raw_data[i:i+FLAGS.batch_size]
-                label = test_label_data[i:i+FLAGS.batch_size]
-
-                predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={X_ph: data, Y_ph: label})
-                
-                if i % 1000 == 0:
-                    print("ephoches: ", i, "trainng loss: ", losses_value)
-                loss_saver.append(losses_value)
-
-            np.save("loss_lstm_"+raw_data_name, loss_saver)
+            count = 0
+            
+            # predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={
+            #     X_ph: data, Y_ph: label})
+            losses_value_all = []
+            for i in range(len(test_raw_data)//512):
+                predicted_value, losses_value = sess.run([logits_op, l2_losses_op], feed_dict={
+                    X_ph: test_raw_data[i*512:i*512+512], Y_ph: test_label_data[i*512:i*512+512]})
+                losses_value_all.append(losses_value)
+            losses_value_all = np.concatenate(losses_value_all,axis=0)
+            print(losses_value_all.shape)
+            # exit()
+            np.save("loss_"+raw_data_name, losses_value_all)
+            print("save loss.. successful XD")
 
             # if FLAGS.day is None:
             #     # testing all data
-            #     predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={
+            #     predicted_value, losses_value, mape_value = \
+            # sess.run([logits_op, losses_op, mape_op], feed_dict={
             #         X_ph: test_raw_data, Y_ph: test_label_data})
 
             #     print("testing mean loss: ", losses_value)

@@ -86,6 +86,16 @@ class TFPModel(object):
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
 
+    def l2_losses(self, logits, labels):
+        """
+        Param:
+            logits:
+            labels:
+        """
+        with tf.name_scope('squared_difference'):
+            losses = tf.squared_difference(logits, labels)
+        return losses
+
     def MAPE(self, logits, labels):
         """
         Param:

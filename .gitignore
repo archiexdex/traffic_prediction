@@ -2,12 +2,7 @@
 mile_base/
 *.npy
 # log
-backlog/
-backlog_new/
-PPbacklog/
-QQbacklog/
-log/
-test_log/
+*backlog*/
 # saved model
 checkpoints/
 # records

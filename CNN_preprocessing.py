@@ -1,14 +1,16 @@
 import numpy as np
 
 
-predict_time = 5
+predict_internal = 5
 num_steps = 12 
-time_preried = predict_time * num_steps
+time_preried = predict_internal * num_steps
 
 st = 15
 ed = 28.5
 
 start_predict = 1
+predict_num_steps = 6
+predict_time = predict_internal * predict_num_steps
 
 is_over = 0
 
@@ -171,61 +173,63 @@ batch_data = []
 label_data = []
 
 i = 0
-# for i in range(len(raw_data) - time_preried - predict_time):
-while i < len(raw_data) - time_preried - predict_time:
+# for i in range(len(raw_data) - time_preried - predict_internal):
+while i < len(raw_data) - time_preried - predict_internal:
     tmp = raw_data[i:i+time_preried]
     ret = []
     is_good = 0
     # for training data
     j = 0
     while j < len(tmp):
-        a = tmp[j:j+predict_time]
+        a = tmp[j:j+predict_internal]
         sump = 0
         flg = 0
         for k in a:
             if k[0][0] != -1:
                 sump += k
                 flg += 1
-        if flg <= predict_time - 2:
+        if flg <= predict_internal - 2:
             is_good += 1
             break
         sump = sump / flg
         ret.append(sump)
                 
-        j += predict_time
+        j += predict_internal
 
     if is_good > 0:
         i += 1
         continue
 
     # for label data
-    tmp = raw_data[i+time_preried+start_predict-1:i+time_preried+start_predict+predict_time-1]
+    tmp = raw_data[i+time_preried+start_predict-1 : i+time_preried+start_predict-1+predict_time]
     ret1 = []
 
     j = 0
     while j < len(tmp):
-        a = tmp[j:j+predict_time]
+        a = tmp[j:j+predict_internal]
         sump = 0
         flg = 0
         for k in a:
             if k[0][0] != -1:
                 sump += k
                 flg += 1
-        if flg <= predict_time - 2:
+        if flg <= predict_internal - 2:
             is_good += 1
             break
         sump = sump / flg
         ret1.append(sump)
                 
-        j += predict_time
+        j += predict_internal
 
     if is_good > 0:
         i += 1
         continue
     else:
+        # print(ret1)
+        # input("!!")
         batch_data.append(ret)
-        label_data.append(ret1[0])
-        i += predict_time
+        label_data.append(ret1)
+        i += predict_internal
     
     print(i)
 
@@ -233,12 +237,12 @@ while i < len(raw_data) - time_preried - predict_time:
 print(len(batch_data))
 
 if is_over == 0:
-    np.save("batch_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
-    np.save("label_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
+    np.save("cnn_batch_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), batch_data)
+    np.save("cnn_label_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), label_data)    
 
 else:
-    np.save("batch_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
-    np.save("label_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
+    np.save("batch_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), batch_data)
+    np.save("label_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), label_data)    
 
 
 print("Finish")

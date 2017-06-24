@@ -121,16 +121,16 @@ def main(_):
 
             saver.restore(sess, FLAGS.checkpoints_dir + '-99')
             print("Successully restored!!")
-            for i, _ in enumerate(test_label_data):
+            # for i, _ in enumerate(test_label_data):
+            while i < len(test_label_data) - FLAGS.batch_size:
                 data  = test_raw_data[i:i+FLAGS.batch_size]
                 label = test_label_data[i:i+FLAGS.batch_size]
 
                 predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={X_ph: data, Y_ph: label})
                 
-                if i % 1000 == 0:
-                    print("ephoches: ", i, "trainng loss: ", losses_value)
+                print("ephoches: ", i, "trainng loss: ", losses_value)
                 loss_saver.append(losses_value)
-
+                i += FLAGS.batch_size
             np.save("loss_lstm_"+raw_data_name, loss_saver)
 
             # if FLAGS.day is None:

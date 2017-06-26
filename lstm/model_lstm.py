@@ -83,6 +83,7 @@ class TFPModel(object):
         with tf.name_scope('l2_loss'):
             losses = tf.squared_difference(logits, labels)
             l2_loss = tf.reduce_mean(losses)
+        # with tf.device('/cpu:0'):
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
 
@@ -109,7 +110,7 @@ class TFPModel(object):
             norn_normal = tf.divide(diff, labels)
             norn = tf.where(con_less, norn_less, norn_normal)
             mape = tf.reduce_mean(norn)
-        tf.summary.scalar('MAPE', mape)
+        # tf.summary.scalar('MAPE', mape)
         return mape
 
     def train(self, loss, global_step=None):

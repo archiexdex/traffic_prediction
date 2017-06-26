@@ -14,11 +14,11 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new_new/' + raw_data_name[6:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[6:-4] + '/test_log_0/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new_new/' + raw_data_name[6:-4] + '/test_log_0/',
                            "summary directory")
-tf.app.flags.DEFINE_integer('batch_size', 1,
+tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 0,
                             "total training epoches")
@@ -112,26 +112,30 @@ def main(_):
         # saver
         saver = tf.train.Saver()
 
-        # np saver
-        loss_saver = []
-
         # Session
         with tf.Session() as sess:
             sess.run(init)
 
             saver.restore(sess, FLAGS.checkpoints_dir + '-99')
             print("Successully restored!!")
+
+            i = 0
+            losses_value_all = []
             # for i, _ in enumerate(test_label_data):
             while i < len(test_label_data) - FLAGS.batch_size:
+                
                 data  = test_raw_data[i:i+FLAGS.batch_size]
                 label = test_label_data[i:i+FLAGS.batch_size]
 
-                predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={X_ph: data, Y_ph: label})
+                predicted_value, losses_value, mape_value = sess.run(
+                    [logits_op, losses_op, mape_op], feed_dict={
+                        X_ph: data, Y_ph: label})
                 
                 print("ephoches: ", i, "trainng loss: ", losses_value)
-                loss_saver.append(losses_value)
+                losses_value_all.append(losses_value)
                 i += FLAGS.batch_size
-            np.save("loss_lstm_"+raw_data_name, loss_saver)
+            np.save("loss_lstm_"+raw_data_name, losses_value_all)
+            print("save loss.. successful XD")
 
             # if FLAGS.day is None:
             #     # testing all data

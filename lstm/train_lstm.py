@@ -79,7 +79,6 @@ class TestingConfig(object):
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
-        with tf.device('/gpu:0'):
             global_steps = tf.train.get_or_create_global_step(graph=graph)
 
             # read data
@@ -135,19 +134,18 @@ def main(_):
             mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
 
             # summary
-            with tf.device('/cpu:0'):
-                merged_op = tf.summary.merge_all()
-                train_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'train', graph=graph)
-                test_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'test', graph=graph)
+            merged_op = tf.summary.merge_all()
+            train_summary_writer = tf.summary.FileWriter(
+                FLAGS.log_dir + 'train', graph=graph)
+            test_summary_writer = tf.summary.FileWriter(
+                FLAGS.log_dir + 'test', graph=graph)
 
             init = tf.global_variables_initializer()
             # saver
             saver = tf.train.Saver()
 
             # Session
-            with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+            with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
                 sess.run(init)
                 for epoch_steps in range(FLAGS.total_epoches):
                     # # shuffle

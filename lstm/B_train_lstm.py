@@ -9,15 +9,15 @@ import model_lstm
 
 
 raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
-label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+label_data_name = "loss_lstm_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new_new_layer2/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new_new_layer2/' + raw_data_name[6:-4] + '/log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
@@ -27,7 +27,7 @@ tf.app.flags.DEFINE_integer('hidden_size', 56,
                             "size of LSTM hidden memory")
 tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
-tf.app.flags.DEFINE_integer('rnn_layers', 2,
+tf.app.flags.DEFINE_integer('rnn_layers', 1,
                             "number of stacked lstm")
 tf.app.flags.DEFINE_integer('num_steps', 12,
                             "total steps of time")
@@ -83,12 +83,13 @@ def main(_):
 
         # read data
         raw_data_t = np.load(FLAGS.data_dir + raw_data_name)
-        label_data_t = np.load(FLAGS.data_dir + label_data_name)
+        label_data_t = np.load(label_data_name)
 
         # select flow from [density, flow, speed, weekday, time]
-        raw_data_t = raw_data_t[:, :, :, 1]
-        label_data_t = label_data_t[:, :, 1]
-
+        
+        # label_data_t = label_data_t[:, :]
+        raw_data_t = raw_data_t[:len(label_data_t), :, :, 1]
+        
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
                        label_data_t.reshape(len(label_data_t), -1)]

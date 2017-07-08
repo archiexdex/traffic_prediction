@@ -81,11 +81,22 @@ class TFPModel(object):
             labels:
         """
         with tf.name_scope('l2_loss'):
-            losses = tf.squared_difference(logits, labels)
+            # losses = tf.squared_difference(logits, labels)
+            losses = tf.losses.absolute_difference(logits, labels)
             l2_loss = tf.reduce_mean(losses)
-        # with tf.device('/cpu:0'):
+        
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
+    
+    def l1_losses(self, logits, labels):
+        """
+        Param:
+            logits:
+            labels:
+        """
+        with tf.name_scope('difference'):
+            losses = tf.sqrt (tf.squared_difference(logits, labels) )
+        return losses
 
     def l2_losses(self, logits, labels):
         """

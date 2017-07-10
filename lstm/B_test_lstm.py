@@ -6,6 +6,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import model_lstm
+import datetime
 
 raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
@@ -16,7 +17,7 @@ tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/s
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/test_log_0/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/test_log_7/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
@@ -38,7 +39,7 @@ tf.app.flags.DEFINE_float('decay_rate', 0,
                           "decay rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('momentum', 0,
                           "momentum of RMSPropOptimizer")
-tf.app.flags.DEFINE_integer('day', 5,
+tf.app.flags.DEFINE_integer('day', 157,
                             "day")
 tf.app.flags.DEFINE_integer('interval', 5,
                             "interval")
@@ -78,6 +79,14 @@ class TestingConfig(object):
         print("learning_rate:", self.learning_rate)
         print("decay_rate:", self.decay_rate)
         print("momentum:", self.momentum)
+
+def the_date(day):
+    return (datetime.date(2012,1,1) + datetime.timedelta(days=day-1) ).strftime("%Y-%m-%d")
+
+def the_time(time):
+    m = time % 60
+    h = time / 60
+    return time * 5 / 3
 
 
 def main(_):
@@ -140,9 +149,9 @@ def main(_):
                                 for vd_idx in range(FLAGS.vd_amount):
                                     predict_losses_scalar_summary = tf.Summary()
                                     predict_losses_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
                                     predict_loss_summary_writer.add_summary(
-                                        predict_losses_scalar_summary, global_step=interval_id * FLAGS.interval)
+                                        predict_losses_scalar_summary, global_step=the_time(interval_id * FLAGS.interval))
                                     predict_loss_summary_writer.flush()
                             else:
                                 offset += 1
@@ -155,15 +164,15 @@ def main(_):
                                 for vd_idx in range(FLAGS.vd_amount):
                                     predict_losses_scalar_summary = tf.Summary()
                                     predict_losses_scalar_summary.value.add(
-                                        simple_value=predicted_value[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=predicted_value[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3])+ " VD:" + str(vd_idx))
                                     predict_loss_summary_writer.add_summary(
-                                        predict_losses_scalar_summary, global_step=interval_id * FLAGS.interval)
+                                        predict_losses_scalar_summary, global_step=the_time(interval_id * FLAGS.interval))
                                     predict_loss_summary_writer.flush()
 
                             interval_id += 1
                             if test_label_all[offset][0][4] < 100 and interval_id > 200:
                                 break
-
+ 
                         print ("WEEK:", test_label_all[i][0][3])
                         break
 

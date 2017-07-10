@@ -6,6 +6,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import model_lstm
+import datetime
 
 raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
@@ -38,7 +39,7 @@ tf.app.flags.DEFINE_float('decay_rate', 0,
                           "decay rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('momentum', 0,
                           "momentum of RMSPropOptimizer")
-tf.app.flags.DEFINE_integer('day', 5,
+tf.app.flags.DEFINE_integer('day', 150,
                             "day")
 tf.app.flags.DEFINE_integer('interval', 5,
                             "interval")
@@ -78,6 +79,14 @@ class TestingConfig(object):
         print("learning_rate:", self.learning_rate)
         print("decay_rate:", self.decay_rate)
         print("momentum:", self.momentum)
+
+def the_date(day):
+    return (datetime.date(2012,1,1) + datetime.timedelta(days=day-1) ).strftime("%Y-%m-%d")
+
+def the_time(time):
+    m = time % 60
+    h = time / 60
+    return time * 5 / 3
 
 
 def main(_):
@@ -152,11 +161,11 @@ def main(_):
             else:
                 # summary
                 labels_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'observation', graph=graph)
+                    FLAGS.log_dir + 'observation')
                 logits_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'prediction', graph=graph)
+                    FLAGS.log_dir + 'prediction')
                 loss_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'loss', graph=graph)
+                    FLAGS.log_dir + 'loss')
                 # draw specific day
                 test_loss_sum = 0.0
                 test_mape_sum = 0.0
@@ -170,24 +179,24 @@ def main(_):
                                 for vd_idx in range(FLAGS.vd_amount):
                                     labels_scalar_summary = tf.Summary()
                                     labels_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
                                     labels_summary_writer.add_summary(
-                                        labels_scalar_summary, global_step=interval_id*FLAGS.interval)
+                                        labels_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     labels_summary_writer.flush()
 
                                     logits_scalar_summary = tf.Summary()
                                     logits_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
                                     logits_summary_writer.add_summary(
-                                        logits_scalar_summary, global_step=interval_id*FLAGS.interval)
+                                        logits_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     logits_summary_writer.flush()
 
                                     loss_scalar_summary = tf.Summary()
                                     loss_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
                                     loss_summary_writer.add_summary(
-                                        loss_scalar_summary, global_step=interval_id*FLAGS.interval)
-                                    loss_summary_writer.flush()
+                                        loss_scalar_summary, the_time(interval_id*FLAGS.interval))
+                                    loss_summary_writer.flush()   
                             else:
                                 offset += 1
                                 amount_counter += 1
@@ -201,27 +210,30 @@ def main(_):
                                 for vd_idx in range(FLAGS.vd_amount):
                                     labels_scalar_summary = tf.Summary()
                                     labels_scalar_summary.value.add(
-                                        simple_value=current_Y_batch[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=current_Y_batch[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
                                     labels_summary_writer.add_summary(
-                                        labels_scalar_summary, global_step=interval_id*FLAGS.interval)
+                                        labels_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     labels_summary_writer.flush()
 
                                     logits_scalar_summary = tf.Summary()
                                     logits_scalar_summary.value.add(
-                                        simple_value=predicted_value[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=predicted_value[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
                                     logits_summary_writer.add_summary(
-                                        logits_scalar_summary, global_step=interval_id*FLAGS.interval)
+                                        logits_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     logits_summary_writer.flush()
 
                                     loss_scalar_summary = tf.Summary()
                                     loss_scalar_summary.value.add(
-                                        simple_value=losses_value[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
+                                        simple_value=losses_value[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
                                     loss_summary_writer.add_summary(
-                                        loss_scalar_summary, global_step=interval_id*FLAGS.interval)
+                                        loss_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     loss_summary_writer.flush()
+                                    # print(interval_id*FLAGS.interval)
 
                             interval_id += 1
                             if test_label_all[offset][0][4] < 100 and interval_id > 200:
+                                print(test_label_all[offset])
+                                print(offset)
                                 break
                         
                         print ("WEEK:", test_label_all[i][0][3])
@@ -240,6 +252,8 @@ def main(_):
         # with sv.managed_session(FLAGS.master) as sess:
         #     while not sv.should_stop():
         #         sess.run(<my_train_op>)
+
+    
 
 
 if __name__ == "__main__":

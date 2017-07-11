@@ -12,5 +12,5 @@ for i in csv_cursor:
     print (i)
     input("!!")
 
-
+ 
      

@@ -41,8 +41,7 @@ def read_file(filename, vec, week_list, time_list, week, st, ed):
                     ptr = binaryfile.read(2)
                     tmp = int.from_bytes(ptr, byteorder='little')
                     vec[vt + j][index] = tmp
-                    week_list[wt +
-                              j][index] = (week + int(j / data_per_day)) % 7
+                    week_list[wt +j][index] = (week + int(j / data_per_day)) % 7
                     time_list[tt + j][index] = j % data_per_day
                 index = index + 1
             elif ed < i / 2:

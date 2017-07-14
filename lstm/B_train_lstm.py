@@ -9,7 +9,7 @@ import model_lstm
 
 
 raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
-label_data_name = "loss_lstm_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+label_data_name = "../loss_lstm_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -83,7 +83,7 @@ def main(_):
 
         # read data
         raw_data_t = np.load(FLAGS.data_dir + raw_data_name)
-        label_data_t = np.load(label_data_name)
+        label_data_t = np.load( label_data_name)
 
         # select flow from [density, flow, speed, weekday, time]
         

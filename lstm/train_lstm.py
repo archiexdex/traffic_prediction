@@ -87,7 +87,7 @@ def main(_):
 
             # select flow from [density, flow, speed, weekday, time]
             raw_data_t = raw_data_t[:, :, :, 1]
-            label_data_t = label_data_t[:, :, 1]
+            label_data_t = label_data_t[:, 0:14, 1]
 
             # concat for later shuffle
             concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
@@ -120,7 +120,7 @@ def main(_):
             X_ph = tf.placeholder(dtype=tf.float32, shape=[
                                 FLAGS.batch_size, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
             Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                                FLAGS.batch_size, FLAGS.vd_amount], name='label_data')
+                                FLAGS.batch_size, FLAGS.vd_amount/2], name='label_data')
 
             # config setting
             config = TestingConfig()

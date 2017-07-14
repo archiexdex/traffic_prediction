@@ -69,7 +69,7 @@ class TFPModel(object):
 
         final = tf.sigmoid(outputs[-1])
         print(final)
-        return final
+        return final[:,0:14]
 
     def lstm_cell(self):
         return rnn.LSTMCell(self.hidden_size, use_peepholes=True, initializer=None, num_proj=self.vd_amount,

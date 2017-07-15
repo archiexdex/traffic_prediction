@@ -15,9 +15,9 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new_new/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[6:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new_new/' + raw_data_name[6:-4] + '/log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[6:-4] + '/log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
@@ -88,7 +88,8 @@ def main(_):
         # select flow from [density, flow, speed, weekday, time]
         raw_data_t = raw_data_t[:233472, :, :, 1]
         print(raw_data_t.shape)
-        # label_data_temp = label_data_temp[:, :]
+        label_data_temp = label_data_temp[:, 0:14]
+
         print(label_data_temp.shape)
         mean = np.mean(label_data_temp)
         print("mean", mean)
@@ -143,7 +144,7 @@ def main(_):
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.vd_amount], name='label_data')
+                              FLAGS.batch_size, FLAGS.vd_amount/2], name='label_data')
 
         # config setting
         config = TestingConfig()

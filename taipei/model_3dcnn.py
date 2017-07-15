@@ -36,7 +36,7 @@ class TFPModel(object):
         """
         Param:
         """
-        print(inputs)
+        print("inputs:", inputs.shape)
         with tf.variable_scope('conv1_1') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
@@ -47,51 +47,31 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv1_1)
-            print("conv1_1:", conv1_1)
-        with tf.variable_scope('max_pool1') as scope:
-            max_pool1 = tf.layers.max_pooling3d(
-                inputs=conv1_1,
-                pool_size=[3, 3, 3],
-                strides=[2, 2, 2],
-                padding='SAME',
-                data_format='channels_last',
-                name=scope.name
-            )
-            print("max_pool1:", max_pool1)
+            print("conv1_1:", conv1_1.shape)
 
         with tf.variable_scope('conv2_1') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv2_1 = tf.layers.conv3d(inputs=max_pool1, filters=64, kernel_size=3,
+            conv2_1 = tf.layers.conv3d(inputs=conv1_1, filters=64, kernel_size=3,
                                        strides=1, padding='SAME', activation=tf.nn.relu,
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv2_1)
-            print("conv2_1:", conv2_1)
-        with tf.variable_scope('max_pool2') as scope:
-            max_pool2 = tf.layers.max_pooling3d(
-                inputs=conv2_1,
-                pool_size=[3, 3, 3],
-                strides=[2, 2, 2],
-                padding='SAME',
-                data_format='channels_last',
-                name=scope.name
-            )
-            print("max_pool2:", max_pool2)
+            print("conv2_1:", conv2_1.shape)
 
         with tf.variable_scope('conv3_1') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv3_1 = tf.layers.conv3d(inputs=max_pool2, filters=128, kernel_size=3,
+            conv3_1 = tf.layers.conv3d(inputs=conv2_1, filters=128, kernel_size=3,
                                        strides=1, padding='SAME', activation=tf.nn.relu,
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv3_1)
-            print("conv3_1:", conv3_1)
+            print("conv3_1:", conv3_1.shape)
         with tf.variable_scope('conv3_2') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
@@ -102,108 +82,113 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv3_2)
-            print("conv3_2:", conv3_2)
-        with tf.variable_scope('max_pool3') as scope:
-            max_pool3 = tf.layers.max_pooling3d(
-                inputs=conv3_2,
-                pool_size=[3, 3, 3],
-                strides=[2, 2, 2],
-                padding='SAME',
-                data_format='channels_last',
-                name=scope.name
-            )
-            print("max_pool3:", max_pool3)
+            print("conv3_2:", conv3_2.shape)
 
-        with tf.variable_scope('conv4_1') as scope:
+        with tf.variable_scope('conv4') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv4_1 = tf.layers.conv3d(inputs=max_pool3, filters=256, kernel_size=3,
+            conv4 = tf.layers.conv3d(inputs=conv3_2, filters=1, kernel_size=3,
                                        strides=1, padding='SAME', activation=tf.nn.relu,
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
-            self._activation_summary(conv4_1)
-            print("conv4_1:", conv4_1)
-        with tf.variable_scope('conv4_2') as scope:
+            self._activation_summary(conv4)
+            print("conv4:", conv4.shape)
+
+        with tf.variable_scope('final') as scope:
+            reshaped_conv4 = tf.reshape(conv4,[-1,128,128,30])
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv4_2 = tf.layers.conv3d(inputs=conv4_1, filters=256, kernel_size=3,
+            final = tf.layers.conv2d(inputs=reshaped_conv4, filters=1, kernel_size=3,
                                        strides=1, padding='SAME', activation=tf.nn.relu,
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
-            self._activation_summary(conv4_2)
-            print("conv4_2:", conv4_2)
-        with tf.variable_scope('max_pool4') as scope:
-            max_pool4 = tf.layers.max_pooling3d(
-                inputs=conv4_2,
-                pool_size=[3, 3, 3],
-                strides=[2, 2, 2],
-                padding='SAME',
-                data_format='channels_last',
-                name=scope.name
-            )
-            print("max_pool4:", max_pool4)
+            self._activation_summary(final)
+            print("final:", final.shape)
 
-        with tf.variable_scope('conv5_1') as scope:
-            kernel_init = tf.truncated_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            bias_init = tf.random_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv5_1 = tf.layers.conv3d(inputs=max_pool4, filters=256, kernel_size=3,
-                                       strides=1, padding='SAME', activation=tf.nn.relu,
-                                       kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                       name=scope.name, reuse=scope.reuse)
-            self._activation_summary(conv5_1)
-            print("conv5_1:", conv5_1)
-        with tf.variable_scope('conv5_2') as scope:
-            kernel_init = tf.truncated_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            bias_init = tf.random_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv5_2 = tf.layers.conv3d(inputs=conv5_1, filters=256, kernel_size=3,
-                                       strides=1, padding='SAME', activation=tf.nn.relu,
-                                       kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                       name=scope.name, reuse=scope.reuse)
-            self._activation_summary(conv5_2)
-            print("conv5_2:", conv5_2)
-        with tf.variable_scope('max_pool5') as scope:
-            max_pool5 = tf.layers.max_pooling3d(
-                inputs=conv5_2,
-                pool_size=[3, 3, 3],
-                strides=[2, 2, 2],
-                padding='SAME',
-                data_format='channels_last',
-                name=scope.name
-            )
-            print("max_pool5:", max_pool5)
+        return final
 
-        with tf.variable_scope('fully1') as scope:
-            reshaped = tf.reshape(max_pool5, [-1, 4096])
-            kernel_init = tf.truncated_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            bias_init = tf.random_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            fully1 = tf.layers.dense(inputs=reshaped, units=4096, activation=tf.nn.relu,
-                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                     name=scope.name, reuse=scope.reuse)
-            self._activation_summary(fully1)
-            print("fully1:", fully1)
+        # with tf.variable_scope('conv4_1') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv4_1 = tf.layers.conv3d(inputs=max_pool3, filters=256, kernel_size=3,
+        #                                strides=1, padding='SAME', activation=tf.nn.relu,
+        #                                kernel_initializer=kernel_init, bias_initializer=bias_init,
+        #                                name=scope.name, reuse=scope.reuse)
+        #     self._activation_summary(conv4_1)
+        #     print("conv4_1:", conv4_1.shape)
+        # with tf.variable_scope('conv4_2') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv4_2 = tf.layers.conv3d(inputs=conv4_1, filters=256, kernel_size=3,
+        #                                strides=1, padding='SAME', activation=tf.nn.relu,
+        #                                kernel_initializer=kernel_init, bias_initializer=bias_init,
+        #                                name=scope.name, reuse=scope.reuse)
+        #     self._activation_summary(conv4_2)
+        #     print("conv4_2:", conv4_2.shape)
+        # with tf.variable_scope('max_pool4') as scope:
+        #     max_pool4 = tf.layers.max_pooling3d(
+        #         inputs=conv4_2,
+        #         pool_size=[3, 3, 3],
+        #         strides=[2, 2, 2],
+        #         padding='SAME',
+        #         data_format='channels_last',
+        #         name=scope.name
+        #     )
+        #     print("max_pool4:", max_pool4.shape)
 
-        with tf.variable_scope('fully2') as scope:
-            kernel_init = tf.truncated_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            bias_init = tf.random_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            fully2 = tf.layers.dense(inputs=fully1, units=128, activation=tf.nn.relu,
-                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                     name=scope.name, reuse=scope.reuse)
-            self._activation_summary(fully2)
-            print("fully2:", fully2)
+        # with tf.variable_scope('conv5_1') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv5_1 = tf.layers.conv3d(inputs=max_pool4, filters=256, kernel_size=3,
+        #                                strides=1, padding='SAME', activation=tf.nn.relu,
+        #                                kernel_initializer=kernel_init, bias_initializer=bias_init,
+        #                                name=scope.name, reuse=scope.reuse)
+        #     self._activation_summary(conv5_1)
+        #     print("conv5_1:", conv5_1.shape)
+        # with tf.variable_scope('conv5_2') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv5_2 = tf.layers.conv3d(inputs=conv5_1, filters=256, kernel_size=3,
+        #                                strides=1, padding='SAME', activation=tf.nn.relu,
+        #                                kernel_initializer=kernel_init, bias_initializer=bias_init,
+        #                                name=scope.name, reuse=scope.reuse)
+        #     self._activation_summary(conv5_2)
+        #     print("conv5_2:", conv5_2.shape)
+        # with tf.variable_scope('max_pool5') as scope:
+        #     max_pool5 = tf.layers.max_pooling3d(
+        #         inputs=conv5_2,
+        #         pool_size=[3, 3, 3],
+        #         strides=[2, 2, 2],
+        #         padding='SAME',
+        #         data_format='channels_last',
+        #         name=scope.name
+        #     )
+        #     print("max_pool5:", max_pool5.shape)
 
-        return fully2
+        # with tf.variable_scope('conv6') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv6 = tf.layers.conv3d(inputs=max_pool5, filters=1, kernel_size=[4,4,1],
+        #                                strides=1, padding='SAME', activation=tf.nn.relu,
+        #                                kernel_initializer=kernel_init, bias_initializer=bias_init,
+        #                                name=scope.name, reuse=scope.reuse)
+        #     self._activation_summary(conv5_2)
+        #     print("conv6:", conv6.shape)
+        # return conv6
 
     def losses(self, logits, labels):
         """
@@ -232,7 +217,7 @@ class TFPModel(object):
         return train_op
 
     def step(self, sess, inputs, labels):
-        feed_dict = {self.X_ph: inputs
+        feed_dict = {self.X_ph: inputs,
                      self.Y_ph: labels}
         _, losses = sess.run([self.train_op, self.losses], feed_dict=feed_dict)
         return losses

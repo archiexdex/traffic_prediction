@@ -6,6 +6,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import model_lstm
+import datetime
 
 raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
@@ -38,7 +39,7 @@ tf.app.flags.DEFINE_float('decay_rate', 0,
                           "decay rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('momentum', 0,
                           "momentum of RMSPropOptimizer")
-tf.app.flags.DEFINE_integer('day', None,
+tf.app.flags.DEFINE_integer('day', 700,
                             "day")
 tf.app.flags.DEFINE_integer('interval', 5,
                             "interval")
@@ -79,6 +80,13 @@ class TestingConfig(object):
         print("decay_rate:", self.decay_rate)
         print("momentum:", self.momentum)
 
+def the_date(day):
+    return (datetime.date(2012,1,1) + datetime.timedelta(days=day-1) ).strftime("%Y-%m-%d")
+
+def the_time(time):
+    m = time % 60
+    h = time / 60
+    return time * 5 / 3
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
@@ -89,14 +97,14 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time, day]
         test_raw_data = test_raw_data[:, :, :, 1]
-        test_label_all = test_label_data[:, :, :]
-        test_label_data = test_label_data[:, :, 1]
+        test_label_all = test_label_data[:, 0:14, :]
+        test_label_data = test_label_data[:, 0:14, 1]
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               None, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              None, FLAGS.vd_amount], name='label_data')
+                              None, FLAGS.vd_amount/2], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -115,6 +123,7 @@ def main(_):
         # np saver
         loss_saver = []
 
+        i = 0
         # Session
         with tf.Session() as sess:
             sess.run(init)
@@ -122,87 +131,63 @@ def main(_):
             saver.restore(sess, FLAGS.checkpoints_dir + '-99')
             print("Successully restored!!")
             # for i, _ in enumerate(test_label_data):
-            while i < len(test_label_data) - FLAGS.batch_size:
-                data  = test_raw_data[i:i+FLAGS.batch_size]
-                label = test_label_data[i:i+FLAGS.batch_size]
+            # while i < len(test_label_data) - FLAGS.batch_size:
+            #     data  = test_raw_data[i:i+FLAGS.batch_size]
+            #     label = test_label_data[i:i+FLAGS.batch_size]
 
-                predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={X_ph: data, Y_ph: label})
+            #     predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={X_ph: data, Y_ph: label})
                 
-                print("ephoches: ", i, "trainng loss: ", losses_value)
-                loss_saver.append(losses_value)
-                i += FLAGS.batch_size
-            np.save("loss_lstm_"+raw_data_name, loss_saver)
+            #     print("ephoches: ", i, "trainng loss: ", losses_value)
+            #     loss_saver.append(losses_value)
+            #     i += FLAGS.batch_size
+            # np.save("loss_lstm_"+raw_data_name, loss_saver)
 
-            # if FLAGS.day is None:
-            #     # testing all data
-            #     predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={
-            #         X_ph: test_raw_data, Y_ph: test_label_data})
+            if FLAGS.day is None:
+                pass
+            else:
+                # testing data of specific day
+                # summary
+                predict_loss_summary_writer = tf.summary.FileWriter(
+                    FLAGS.log_dir + 'predicted_loss', graph=graph)
+                # draw specific day
+                amount_counter = 0
+                for i, _ in enumerate(test_label_data):
+                    if test_label_all[i][0][5] == FLAGS.day:
+                        interval_id = 0
+                        offset = i
+                        while interval_id < (1440 // FLAGS.interval):
+                            if test_label_all[offset][0][4] // FLAGS.interval != interval_id:
+                                for vd_idx in range(FLAGS.vd_amount//2):
+                                    predict_losses_scalar_summary = tf.Summary()
+                                    predict_losses_scalar_summary.value.add(
+                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
+                                    predict_loss_summary_writer.add_summary(
+                                        predict_losses_scalar_summary, global_step=the_time(interval_id * FLAGS.interval))
+                                    predict_loss_summary_writer.flush()
+                            else:
+                                offset += 1
+                                amount_counter += 1
+                                current_X_batch = test_raw_data[offset:offset + 1]
+                                current_Y_batch = test_label_data[offset:offset + 1]
+                                predicted_value = sess.run(logits_op, feed_dict={
+                                    X_ph: current_X_batch})
 
-            #     print("testing mean loss: ", losses_value)
-            #     print("testing mean mape: ", mape_value * 100.0, "%")
-            # else:
-            #     # summary
-            #     labels_summary_writer = tf.summary.FileWriter(
-            #         FLAGS.log_dir + 'observation', graph=graph)
-            #     logits_summary_writer = tf.summary.FileWriter(
-            #         FLAGS.log_dir + 'prediction', graph=graph)
-            #     # draw specific day
-            #     test_loss_sum = 0.0
-            #     test_mape_sum = 0.0
-            #     amount_counter = 0
-            #     for i, _ in enumerate(test_label_data):
-            #         if test_label_all[i][0][5] == FLAGS.day:
-            #             interval_id = 0
-            #             offset = i
-            #             while interval_id < (1440//FLAGS.interval):
-            #                 if test_label_all[offset][0][4]//FLAGS.interval != interval_id:
-            #                     for vd_idx in range(FLAGS.vd_amount):
-            #                         labels_scalar_summary = tf.Summary()
-            #                         labels_scalar_summary.value.add(
-            #                             simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
-            #                         labels_summary_writer.add_summary(
-            #                             labels_scalar_summary, global_step=interval_id*FLAGS.interval)
-            #                         labels_summary_writer.flush()
+                                for vd_idx in range(FLAGS.vd_amount//2):
+                                    predict_losses_scalar_summary = tf.Summary()
+                                    predict_losses_scalar_summary.value.add(
+                                        simple_value=predicted_value[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3])+ " VD:" + str(vd_idx))
+                                    predict_loss_summary_writer.add_summary(
+                                        predict_losses_scalar_summary, global_step=the_time(interval_id * FLAGS.interval))
+                                    predict_loss_summary_writer.flush()
 
-            #                         logits_scalar_summary = tf.Summary()
-            #                         logits_scalar_summary.value.add(
-            #                             simple_value=0, tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
-            #                         logits_summary_writer.add_summary(
-            #                             logits_scalar_summary, global_step=interval_id*FLAGS.interval)
-            #                         logits_summary_writer.flush()
-            #                 else:
-            #                     offset += 1
-            #                     amount_counter += 1
-            #                     current_X_batch = test_raw_data[offset:offset + 1]
-            #                     current_Y_batch = test_label_data[offset:offset + 1]
-            #                     predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={
-            #                         X_ph: current_X_batch, Y_ph: current_Y_batch})
-            #                     test_loss_sum += losses_value
-            #                     test_mape_sum += mape_value
-
-            #                     for vd_idx in range(FLAGS.vd_amount):
-            #                         labels_scalar_summary = tf.Summary()
-            #                         labels_scalar_summary.value.add(
-            #                             simple_value=current_Y_batch[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
-            #                         labels_summary_writer.add_summary(
-            #                             labels_scalar_summary, global_step=interval_id*FLAGS.interval)
-            #                         labels_summary_writer.flush()
-
-            #                         logits_scalar_summary = tf.Summary()
-            #                         logits_scalar_summary.value.add(
-            #                             simple_value=predicted_value[0][vd_idx], tag="DAY:" + str(FLAGS.day) + " VD:" + str(vd_idx))
-            #                         logits_summary_writer.add_summary(
-            #                             logits_scalar_summary, global_step=interval_id*FLAGS.interval)
-            #                         logits_summary_writer.flush()
-
-            #                 interval_id += 1
-            #                 if test_label_all[offset][0][4] < 100 and interval_id > 200:
-            #                     break
+                            interval_id += 1
+                            if test_label_all[offset][0][4] < 100 and interval_id > 200:
+                                break
+ 
+                        print ("WEEK:", test_label_all[i][0][3])
+                        break
                         
-            #             print ("WEEK:", test_label_all[i][0][3])
-            #             break
 
-                    
             #     # test mean loss
             #     test_mean_loss = test_loss_sum / amount_counter
             #     test_mean_mape = test_mape_sum / amount_counter

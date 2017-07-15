@@ -66,25 +66,51 @@ class TFPModel(object):
             #     logits_list.append(cell_out)
             # last_logit = logits_list[-1]
             # print ("last_logit:", last_logit)
-
-        return outputs[-1]
+        ret = outputs[-1][:,0:14]
+        return ret
 
     def lstm_cell(self):
         return rnn.LSTMCell(self.hidden_size, use_peepholes=True, initializer=None, num_proj=self.vd_amount,
                             forget_bias=1.0, state_is_tuple=True,
                             activation=tf.tanh, reuse=tf.get_variable_scope().reuse)
 
-    def losses(self, logits, labels):
+    def losses(self, logits, labels, is_squared=True, is_reduction=True):
+        """
+        Param:
+            logits:
+            labels:
+            is_squared:
+            is_reduction:
+        """
+        if is_squared == False:
+            with tf.name_scope('l1_loss'):
+                if is_reduction:
+                    l1_loss = tf.losses.absolute_difference(logits, labels)
+                else:
+                    l1_loss = tf.losses.absolute_difference(logits, labels, 
+                    weights=1.0, scope=None, loss_collection=tf.GraphKeys.LOSSES, reduction=tf.losses.Reduction.NONE)
+            
+            tf.summary.scalar('l1_loss', l1_loss)
+            return l1_loss
+        else:
+            with tf.name_scope('l2_loss'):
+                l2_loss = tf.squared_difference(logits, labels)
+                if is_reduction:
+                    l2_loss = tf.reduce_mean(l2_loss)
+            
+            tf.summary.scalar('l2_loss', l2_loss)
+            return l2_loss
+
+    def l1_losses(self, logits, labels):
         """
         Param:
             logits:
             labels:
         """
-        with tf.name_scope('l2_loss'):
-            losses = tf.squared_difference(logits, labels)
-            l2_loss = tf.reduce_mean(losses)
-        tf.summary.scalar('l2_loss', l2_loss)
-        return l2_loss
+        with tf.name_scope('difference'):
+            # losses = tf.sqrt (tf.squared_difference(logits, labels) )
+            losses = tf.losses.absolute_difference(logits, labels, weights=1.0, scope=None, loss_collection=tf.GraphKeys.LOSSES)
+        return losses
 
     def l2_losses(self, logits, labels):
         """
@@ -109,7 +135,7 @@ class TFPModel(object):
             norn_normal = tf.divide(diff, labels)
             norn = tf.where(con_less, norn_less, norn_normal)
             mape = tf.reduce_mean(norn)
-        tf.summary.scalar('MAPE', mape)
+        # tf.summary.scalar('MAPE', mape)
         return mape
 
     def train(self, loss, global_step=None):

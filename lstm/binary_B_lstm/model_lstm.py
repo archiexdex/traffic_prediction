@@ -67,7 +67,9 @@ class TFPModel(object):
             # last_logit = logits_list[-1]
             # print ("last_logit:", last_logit)
 
-        return outputs[-1]
+        final = tf.sigmoid(outputs[-1])
+        print(final)
+        return final[:,0:14]
 
     def lstm_cell(self):
         return rnn.LSTMCell(self.hidden_size, use_peepholes=True, initializer=None, num_proj=self.vd_amount,

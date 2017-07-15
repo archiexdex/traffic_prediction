@@ -8,20 +8,24 @@ import tensorflow as tf
 import model_conv
 
 
-raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_6_10.npy"
-label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_6_10.npy"
+raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
+tf.app.flags.DEFINE_string("raw_data", "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy",
+                           "raw data name")
+tf.app.flags.DEFINE_string("label_data", "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy",
+                           "label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new_new/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + "predict_1_5" + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new_new/' + raw_data_name[6:-4] + '/log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + "predict_1_5" + '/log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 100,
+tf.app.flags.DEFINE_integer('total_epoches', 150,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
@@ -70,12 +74,12 @@ def main(_):
         global_steps = tf.train.get_or_create_global_step(graph=graph)
 
         # read data
-        raw_data_t = np.load(FLAGS.data_dir + raw_data_name)
-        label_data_t = np.load(FLAGS.data_dir + label_data_name)
-
+        raw_data_t = np.load(FLAGS.data_dir + FLAGS.raw_data)
+        label_data_t = np.load(FLAGS.data_dir + FLAGS.label_data)
+        
         # select flow from [density, flow, speed, weekday, time]
         raw_data_t = raw_data_t[:, :, :, :5]
-        label_data_t = label_data_t[:, :, 1]
+        label_data_t = label_data_t[:, 0:14, 1:1+2]
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
@@ -108,7 +112,7 @@ def main(_):
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.vd_amount], name='label_data')
+                              FLAGS.batch_size, FLAGS.vd_amount/2, 2], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -191,7 +195,7 @@ def main(_):
                 print("ephoches: ", epoch_steps, "trainng loss: ", train_mean_loss,
                       "testing loss: ", test_mean_loss, "testing mape: ", mape_mean, "%")
 
-                if (epoch_steps + 1) % 50 == 0:
+                if (epoch_steps + 1) % 25 == 0:
                     # Save the variables to disk.
                     save_path = saver.save(
                         sess, FLAGS.checkpoints_dir, global_step=epoch_steps)

@@ -88,6 +88,13 @@ def the_time(time):
     h = time / 60
     return time * 5 / 3
 
+def write_data(writer, value, week, vd_idx, time):
+    summary = tf.Summary()
+    summary.value.add(
+        simple_value=value, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(week) + " VD:" + str(vd_idx))
+    writer.add_summary(
+        summary, the_time(time))
+    writer.flush()
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
@@ -187,18 +194,19 @@ def main(_):
                 print("testing mean mape: ", mape_value * 100.0, "%")
             else:
                 # summary
-                labels_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'observation')
-                logits_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'prediction')
-                loss_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'loss')
-                # shift_summary_writer = tf.summary.FileWriter(
-                #     FLAGS.log_dir + 'observation_shift')
-                speed_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'speed')
                 density_summary_writer = tf.summary.FileWriter(
                     FLAGS.log_dir + 'density')
+                flow_summary_writer = tf.summary.FileWriter(
+                    FLAGS.log_dir + 'flow')
+                speed_summary_writer = tf.summary.FileWriter(
+                    FLAGS.log_dir + 'speed')
+                
+                predict_flow_summary_writer = tf.summary.FileWriter(
+                    FLAGS.log_dir + 'prediction_flow')
+                # predict_speed_summary_writer = tf.summary.FileWriter(
+                #     FLAGS.log_dir + 'prediction_speed')
+                losses_summary_writer = tf.summary.FileWriter(
+                    FLAGS.log_dir + 'l2_losses')
 
                 # draw specific day
                 test_loss_sum = 0.0
@@ -212,47 +220,14 @@ def main(_):
                         while interval_id < (1440//FLAGS.interval) :
                             if test_label_all[offset][0][4]//FLAGS.interval != interval_id:
                                 for vd_idx in range(FLAGS.vd_amount//2):
-                                    labels_scalar_summary = tf.Summary()
-                                    labels_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    labels_summary_writer.add_summary(
-                                        labels_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    labels_summary_writer.flush()
+                                    
+                                    write_data(density_summary_writer, 0, test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    write_data(flow_summary_writer, 0, test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    write_data(speed_summary_writer, 0, test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
 
-                                    logits_scalar_summary = tf.Summary()
-                                    logits_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    logits_summary_writer.add_summary(
-                                        logits_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    logits_summary_writer.flush()
-
-                                    # shift_scalar_summary = tf.Summary()
-                                    # shift_scalar_summary.value.add(
-                                    #     simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    # shift_summary_writer.add_summary(
-                                    #     shift_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    # shift_summary_writer.flush()
-
-                                    loss_scalar_summary = tf.Summary()
-                                    loss_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    loss_summary_writer.add_summary(
-                                        loss_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    loss_summary_writer.flush()   
-
-                                    speed_scalar_summary = tf.Summary()
-                                    speed_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    speed_summary_writer.add_summary(
-                                        speed_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    speed_summary_writer.flush()
-
-                                    density_scalar_summary = tf.Summary()
-                                    density_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    density_summary_writer.add_summary(
-                                        density_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    density_summary_writer.flush()
+                                    write_data(predict_flow_summary_writer, 0, test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    # write_data(predict_speed_summary_writer, 0, test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    write_data(losses_summary_writer, 0, test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
                             else:
                                 offset += 1
                                 amount_counter += 1
@@ -264,47 +239,15 @@ def main(_):
                                 test_mape_sum += mape_value
 
                                 for vd_idx in range(FLAGS.vd_amount//2):
-                                    labels_scalar_summary = tf.Summary()
-                                    labels_scalar_summary.value.add(
-                                        simple_value=current_Y_batch[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    labels_summary_writer.add_summary(
-                                        labels_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    labels_summary_writer.flush()
-
-                                    logits_scalar_summary = tf.Summary()
-                                    logits_scalar_summary.value.add(
-                                        simple_value=predicted_value[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    logits_summary_writer.add_summary(
-                                        logits_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    logits_summary_writer.flush()
-
-                                    # shift_scalar_summary = tf.Summary()
-                                    # shift_scalar_summary.value.add(
-                                    #     simple_value=current_X_batch[0][-1][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    # shift_summary_writer.add_summary(
-                                    #     shift_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    # shift_summary_writer.flush()
-
-                                    loss_scalar_summary = tf.Summary()
-                                    loss_scalar_summary.value.add(
-                                        simple_value=losses_value[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    loss_summary_writer.add_summary(
-                                        loss_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    loss_summary_writer.flush()
                                     
-                                    speed_scalar_summary = tf.Summary()
-                                    speed_scalar_summary.value.add(
-                                        simple_value=test_label_all[offset][vd_idx][2], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    speed_summary_writer.add_summary(
-                                        speed_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    speed_summary_writer.flush()
+                                    write_data(density_summary_writer, test_label_all[offset][vd_idx][0], test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    write_data(flow_summary_writer, test_label_all[offset][vd_idx][1], test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    write_data(speed_summary_writer, test_label_all[offset][vd_idx][2], test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
 
-                                    density_scalar_summary = tf.Summary()
-                                    density_scalar_summary.value.add(
-                                        simple_value=test_label_all[offset][vd_idx][0], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    density_summary_writer.add_summary(
-                                        density_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    density_summary_writer.flush()
+                                    write_data(predict_flow_summary_writer, predicted_value[0][vd_idx], test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    # write_data(predict_speed_summary_writer, predicted_value[0][vd_idx][1], test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+                                    write_data(losses_summary_writer, losses_value, test_label_all[i][0][3], vd_idx, interval_id*FLAGS.interval)
+
 
                             interval_id += 1
                             if test_label_all[offset][0][4] < 100 and interval_id > 200:

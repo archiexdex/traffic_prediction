@@ -1,7 +1,7 @@
 import numpy as np
 
 
-predict_time = 10
+predict_time = 20
 num_steps = 12 
 time_preried = predict_time * num_steps
 

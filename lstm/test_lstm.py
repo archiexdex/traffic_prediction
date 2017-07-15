@@ -193,10 +193,12 @@ def main(_):
                     FLAGS.log_dir + 'prediction')
                 loss_summary_writer = tf.summary.FileWriter(
                     FLAGS.log_dir + 'loss')
-                shift_summary_writer = tf.summary.FileWriter(
-                    FLAGS.log_dir + 'observation_shift')
+                # shift_summary_writer = tf.summary.FileWriter(
+                #     FLAGS.log_dir + 'observation_shift')
                 speed_summary_writer = tf.summary.FileWriter(
                     FLAGS.log_dir + 'speed')
+                density_summary_writer = tf.summary.FileWriter(
+                    FLAGS.log_dir + 'density')
 
                 # draw specific day
                 test_loss_sum = 0.0
@@ -224,12 +226,12 @@ def main(_):
                                         logits_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     logits_summary_writer.flush()
 
-                                    shift_scalar_summary = tf.Summary()
-                                    shift_scalar_summary.value.add(
-                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    shift_summary_writer.add_summary(
-                                        shift_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    shift_summary_writer.flush()
+                                    # shift_scalar_summary = tf.Summary()
+                                    # shift_scalar_summary.value.add(
+                                    #     simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
+                                    # shift_summary_writer.add_summary(
+                                    #     shift_scalar_summary, the_time(interval_id*FLAGS.interval))
+                                    # shift_summary_writer.flush()
 
                                     loss_scalar_summary = tf.Summary()
                                     loss_scalar_summary.value.add(
@@ -244,6 +246,13 @@ def main(_):
                                     speed_summary_writer.add_summary(
                                         speed_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     speed_summary_writer.flush()
+
+                                    density_scalar_summary = tf.Summary()
+                                    density_scalar_summary.value.add(
+                                        simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
+                                    density_summary_writer.add_summary(
+                                        density_scalar_summary, the_time(interval_id*FLAGS.interval))
+                                    density_summary_writer.flush()
                             else:
                                 offset += 1
                                 amount_counter += 1
@@ -269,12 +278,12 @@ def main(_):
                                         logits_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     logits_summary_writer.flush()
 
-                                    shift_scalar_summary = tf.Summary()
-                                    shift_scalar_summary.value.add(
-                                        simple_value=current_X_batch[0][-1][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
-                                    shift_summary_writer.add_summary(
-                                        shift_scalar_summary, the_time(interval_id*FLAGS.interval))
-                                    shift_summary_writer.flush()
+                                    # shift_scalar_summary = tf.Summary()
+                                    # shift_scalar_summary.value.add(
+                                    #     simple_value=current_X_batch[0][-1][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
+                                    # shift_summary_writer.add_summary(
+                                    #     shift_scalar_summary, the_time(interval_id*FLAGS.interval))
+                                    # shift_summary_writer.flush()
 
                                     loss_scalar_summary = tf.Summary()
                                     loss_scalar_summary.value.add(
@@ -289,6 +298,13 @@ def main(_):
                                     speed_summary_writer.add_summary(
                                         speed_scalar_summary, the_time(interval_id*FLAGS.interval))
                                     speed_summary_writer.flush()
+
+                                    density_scalar_summary = tf.Summary()
+                                    density_scalar_summary.value.add(
+                                        simple_value=test_label_all[offset][vd_idx][0], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
+                                    density_summary_writer.add_summary(
+                                        density_scalar_summary, the_time(interval_id*FLAGS.interval))
+                                    density_summary_writer.flush()
 
                             interval_id += 1
                             if test_label_all[offset][0][4] < 100 and interval_id > 200:

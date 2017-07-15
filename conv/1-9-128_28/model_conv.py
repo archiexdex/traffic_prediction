@@ -83,7 +83,7 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            full = tf.layers.conv2d(inputs=conv3, filters=28, kernel_size=[1,9],
+            full = tf.layers.conv2d(inputs=conv3, filters=14, kernel_size=[1,8],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
@@ -92,7 +92,7 @@ class TFPModel(object):
 
         with tf.variable_scope('reshape') as scope:
             reshaped = tf.reshape(
-                full, [-1, 28], name=scope.name)
+                full, [-1, 14,2], name=scope.name)
             print("reshape:", reshaped)
 
         return reshaped

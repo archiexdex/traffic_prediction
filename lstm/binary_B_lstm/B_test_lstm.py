@@ -15,9 +15,9 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[6:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/test_log_7/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[6:-4] + '/test_log_0/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
@@ -39,7 +39,7 @@ tf.app.flags.DEFINE_float('decay_rate', 0,
                           "decay rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('momentum', 0,
                           "momentum of RMSPropOptimizer")
-tf.app.flags.DEFINE_integer('day', 157,
+tf.app.flags.DEFINE_integer('day', 700,
                             "day")
 tf.app.flags.DEFINE_integer('interval', 5,
                             "interval")
@@ -88,7 +88,6 @@ def the_time(time):
     h = time / 60
     return time * 5 / 3
 
-
 def main(_):
     with tf.get_default_graph().as_default() as graph:
 
@@ -98,14 +97,14 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time, day]
         test_raw_data = test_raw_data[:, :, :, 1]
-        test_label_all = test_label_data[:, :, :]
-        test_label_data = test_label_data[:, :, 1]
+        test_label_all = test_label_data[:, 0:14, :]
+        test_label_data = test_label_data[:, 0:14, 1]
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               None, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              None, FLAGS.vd_amount], name='label_data')
+                              None, FLAGS.vd_amount/2], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -124,12 +123,24 @@ def main(_):
         # np saver
         loss_saver = []
 
+        i = 0
         # Session
         with tf.Session() as sess:
             sess.run(init)
 
             saver.restore(sess, FLAGS.checkpoints_dir + '-99')
             print("Successully restored!!")
+            # for i, _ in enumerate(test_label_data):
+            # while i < len(test_label_data) - FLAGS.batch_size:
+            #     data  = test_raw_data[i:i+FLAGS.batch_size]
+            #     label = test_label_data[i:i+FLAGS.batch_size]
+
+            #     predicted_value, losses_value, mape_value = sess.run([logits_op, losses_op, mape_op], feed_dict={X_ph: data, Y_ph: label})
+                
+            #     print("ephoches: ", i, "trainng loss: ", losses_value)
+            #     loss_saver.append(losses_value)
+            #     i += FLAGS.batch_size
+            # np.save("loss_lstm_"+raw_data_name, loss_saver)
 
             if FLAGS.day is None:
                 pass
@@ -146,7 +157,7 @@ def main(_):
                         offset = i
                         while interval_id < (1440 // FLAGS.interval):
                             if test_label_all[offset][0][4] // FLAGS.interval != interval_id:
-                                for vd_idx in range(FLAGS.vd_amount):
+                                for vd_idx in range(FLAGS.vd_amount//2):
                                     predict_losses_scalar_summary = tf.Summary()
                                     predict_losses_scalar_summary.value.add(
                                         simple_value=0, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3]) + " VD:" + str(vd_idx))
@@ -161,7 +172,7 @@ def main(_):
                                 predicted_value = sess.run(logits_op, feed_dict={
                                     X_ph: current_X_batch})
 
-                                for vd_idx in range(FLAGS.vd_amount):
+                                for vd_idx in range(FLAGS.vd_amount//2):
                                     predict_losses_scalar_summary = tf.Summary()
                                     predict_losses_scalar_summary.value.add(
                                         simple_value=predicted_value[0][vd_idx], tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(test_label_all[i][0][3])+ " VD:" + str(vd_idx))
@@ -175,6 +186,14 @@ def main(_):
  
                         print ("WEEK:", test_label_all[i][0][3])
                         break
+                        
+
+            #     # test mean loss
+            #     test_mean_loss = test_loss_sum / amount_counter
+            #     test_mean_mape = test_mape_sum / amount_counter
+
+            #     print("testing mean loss: ", test_mean_loss)
+            #     print("testing mean mape: ", test_mean_mape * 100.0, "%")
 
         # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
         # sv = Supervisor(logdir=FLAGS.checkpoints_dir)

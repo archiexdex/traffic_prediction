@@ -9,15 +9,15 @@ import model_lstm
 
 
 raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
-label_data_name = "../loss_lstm_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+label_data_name = "loss_lstm_batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[6:-4] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_loss/' + raw_data_name[6:-4] + '/log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[6:-4] + '/log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
@@ -83,13 +83,36 @@ def main(_):
 
         # read data
         raw_data_t = np.load(FLAGS.data_dir + raw_data_name)
-        label_data_t = np.load( label_data_name)
+        label_data_temp = np.load(label_data_name)
 
         # select flow from [density, flow, speed, weekday, time]
-        
-        # label_data_t = label_data_t[:, :]
-        raw_data_t = raw_data_t[:len(label_data_t), :, :, 1]
-        
+        raw_data_t = raw_data_t[:233472, :, :, 1]
+        print(raw_data_t.shape)
+        label_data_temp = label_data_temp[:, 0:14]
+
+        print(label_data_temp.shape)
+        mean = np.mean(label_data_temp)
+        print("mean", mean)
+        # # binary label
+        label_data_t = []
+        for idx, vds in enumerate(label_data_temp):
+            for vd_idx, flow in enumerate(vds):
+                if flow >= mean:
+                    label_data_temp[idx][vd_idx] = 1
+                else:
+                    label_data_temp[idx][vd_idx] = 0
+        label_data_t = np.array(label_data_temp)
+        # label_data_t = []
+        # for _, vds in enumerate(label_data_temp):
+        #     temppp =[]
+        #     for _, flow in enumerate(vds):
+        #         if flow >= mean:
+        #             temppp.append([1, 0])
+        #         else:
+        #             temppp.append([0, 1])
+        #     label_data_t.append(temppp)
+        # label_data_t = np.array(label_data_t)
+        print(label_data_t.shape)
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
                        label_data_t.reshape(len(label_data_t), -1)]
@@ -121,7 +144,7 @@ def main(_):
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.num_steps, FLAGS.vd_amount], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.vd_amount], name='label_data')
+                              FLAGS.batch_size, FLAGS.vd_amount/2], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -130,10 +153,10 @@ def main(_):
         # model
         model = model_lstm.TFPModel(config, is_training=True)
         logits_op = model.inference(inputs=X_ph)
-        loss_op = model.losses(logits=logits_op, labels=Y_ph)
+        loss_op = model.losses(logits=logits_op, labels=Y_ph)  # L2
         train_op = model.train(loss=loss_op, global_step=global_steps)
         mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
-
+        
         # summary
         merged_op = tf.summary.merge_all()
         train_summary_writer = tf.summary.FileWriter(
@@ -157,8 +180,10 @@ def main(_):
                 train_batches_amount = len(train_raw_data) // FLAGS.batch_size
                 for i in range(train_batches_amount):
                     temp_id = i * FLAGS.batch_size
-                    current_X_batch = train_raw_data[temp_id:temp_id + FLAGS.batch_size]
-                    current_Y_batch = train_label_data[temp_id:temp_id + FLAGS.batch_size]
+                    current_X_batch = train_raw_data[temp_id:temp_id +
+                                                     FLAGS.batch_size]
+                    current_Y_batch = train_label_data[temp_id:temp_id +
+                                                       FLAGS.batch_size]
                     summary, _, loss_value, steps = \
                         sess.run([merged_op, train_op, loss_op, global_steps], feed_dict={
                                  X_ph: current_X_batch, Y_ph: current_Y_batch})
@@ -172,8 +197,10 @@ def main(_):
                 test_batches_amount = len(test_raw_data) // FLAGS.batch_size
                 for i in range(test_batches_amount):
                     temp_id = i * FLAGS.batch_size
-                    current_X_batch = test_raw_data[temp_id:temp_id + FLAGS.batch_size]
-                    current_Y_batch = test_label_data[temp_id:temp_id + FLAGS.batch_size]
+                    current_X_batch = test_raw_data[temp_id:temp_id +
+                                                    FLAGS.batch_size]
+                    current_Y_batch = test_label_data[temp_id:temp_id +
+                                                      FLAGS.batch_size]
                     test_loss_value, mape_loss_value = sess.run([loss_op, mape_op], feed_dict={
                         X_ph: current_X_batch, Y_ph: current_Y_batch})
                     test_loss_sum += test_loss_value

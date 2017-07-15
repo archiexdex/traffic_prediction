@@ -1,7 +1,7 @@
 import numpy as np
 
 
-predict_time = 5
+predict_time = 20
 num_steps = 12 
 time_preried = predict_time * num_steps
 
@@ -12,8 +12,11 @@ start_predict = 1
 
 is_over = 0
 
+root_path = "/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/"
+data_path = "/home/nctucgv/Documents/TrafficVis_Run/"
+
 def read_file(filename, vec, week_list, time_list, week, st, ed):
-    filename = "../../VD_data/mile_base/" + filename
+    filename = data_path + "VD_data/mile_base/" + filename
     with open(filename, "rb") as binaryfile:
         binaryfile.seek(0)
         ptr = binaryfile.read(4)
@@ -41,8 +44,7 @@ def read_file(filename, vec, week_list, time_list, week, st, ed):
                     ptr = binaryfile.read(2)
                     tmp = int.from_bytes(ptr, byteorder='little')
                     vec[vt + j][index] = tmp
-                    week_list[wt +
-                              j][index] = (week + int(j / data_per_day)) % 7
+                    week_list[wt +j][index] = (week + int(j / data_per_day)) % 7
                     time_list[tt + j][index] = j % data_per_day
                 index = index + 1
             elif ed < i / 2:
@@ -55,14 +57,14 @@ raw_data = []
 
 
 try:
-     raw_data = np.load("fix_raw_data_"+str(st)+"_"+str(ed)+".npy")
+     raw_data = np.load(root_path+"fix_raw_data_"+str(st)+"_"+str(ed)+".npy")
 except:
     pass
 
 if len(raw_data) == 0:
 
     try:
-        raw_data = np.load("raw_data.npy")
+        raw_data = np.load(root_path+"raw_data.npy")
     except:
         pass
 
@@ -233,12 +235,12 @@ while i < len(raw_data) - time_preried - predict_time:
 print(len(batch_data))
 
 if is_over == 0:
-    np.save("batch_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
-    np.save("label_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
+    np.save(root_path+"batch_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
+    np.save(root_path+"label_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
 
 else:
-    np.save("batch_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
-    np.save("label_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
+    np.save(root_path+"batch_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), batch_data)
+    np.save(root_path+"label_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_time-1), label_data)    
 
 
 print("Finish")

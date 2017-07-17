@@ -23,13 +23,13 @@ label_data="label_no_over_data_mile_15_28.5_total_"
 
 dir="predict_1_"
 
-predict_time=15
+predict_time=10
 
 while [ "${predict_time}" != "25" ]
 do
     T=`expr $predict_time \* 12`
 
-    python train_conv.py --raw_data=$raw_data$T"_"$dir$predict_time".npy" --label_data=$label_data$T"_"$dir$predict_time".npy" \
+    python test_conv.py --raw_data=$raw_data$T"_"$dir$predict_time".npy" --label_data=$label_data$T"_"$dir$predict_time".npy" \
     --checkpoints_dir='backlog_new/'$dir$predict_time'/checkpoints/' --log_dir='backlog_new/'$dir$predict_time'/log/'
     predict_time=$(($predict_time+5))
 done

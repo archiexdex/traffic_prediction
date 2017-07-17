@@ -8,16 +8,16 @@ import tensorflow as tf
 import model_conv
 import datetime
 
-raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
-label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_5.npy"
+raw_data_name = "batch_no_over_data_mile_15_28.5_total_240_predict_1_20.npy"
+label_data_name = "label_no_over_data_mile_15_28.5_total_240_predict_1_20.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[6:-4] + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + raw_data_name[42:42+12] + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[6:-4] + '/test_log_0/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + raw_data_name[42:42+12] + '/test_log_0/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 1,
                             "mini-batch size")
@@ -37,7 +37,7 @@ tf.app.flags.DEFINE_integer('day', 700,
                             "day")
 tf.app.flags.DEFINE_boolean('if_save_loss', False,
                             "save lossas training set for B model")
-tf.app.flags.DEFINE_integer('interval', 5,
+tf.app.flags.DEFINE_integer('interval', 20,
                             "interval")
 
 

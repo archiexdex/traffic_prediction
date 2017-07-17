@@ -36,7 +36,7 @@ class TFPModel(object):
         """
         Param:
         """
-
+        print("inputs:", inputs)
         with tf.variable_scope('lstm') as scope:
             cells = rnn.MultiRNNCell(
                 [self.lstm_cell() for _ in range(self.rnn_layers)])
@@ -51,7 +51,7 @@ class TFPModel(object):
             lstm_input = tf.unstack(inputs, num=self.num_steps, axis=1)
             outputs, states = rnn.static_rnn(
                 cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
-            # print ("last_logit:", outputs[-1])
+            print ("last_logit:", outputs[-1])
 
             ## vanilla method
             # lstm_input = reshape_back
@@ -69,7 +69,7 @@ class TFPModel(object):
 
         final = tf.sigmoid(outputs[-1])
         print(final)
-        return final
+        return final[:,0:14]
 
     def lstm_cell(self):
         return rnn.LSTMCell(self.hidden_size, use_peepholes=True, initializer=None, num_proj=self.vd_amount,
@@ -82,11 +82,13 @@ class TFPModel(object):
             logits:
             labels:
         """
-        with tf.name_scope('l2_loss'):
-            losses = tf.squared_difference(logits, labels)
-            l2_loss = tf.reduce_mean(losses)
-        tf.summary.scalar('l2_loss', l2_loss)
-        return l2_loss
+        with tf.name_scope('sigmoid_cross_entropy_with_logits'):
+            losses = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=logits)
+            losses = tf.reduce_mean(losses)
+            print("sigmoid_cross_entropy_with_logits", losses)
+            exit()
+        tf.summary.scalar('sigmoid_cross_entropy_with_logits', losses)
+        return losses
 
     def l2_losses(self, logits, labels):
         """

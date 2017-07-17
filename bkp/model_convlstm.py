@@ -38,7 +38,7 @@ class TFPModel(object):
         with tf.variable_scope('reshape') as scope:
             reshaped_input = tf.reshape(
                 inputs, [self.batch_size * self.num_steps, 28, 5], name=scope.name)
-            # print("reshape:", reshaped_input)
+            print("reshape:", reshaped_input)
 
         with tf.variable_scope('conv1') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -50,7 +50,7 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv1)
-            # print("conv1:", conv1)
+            print("conv1:", conv1)
 
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -62,7 +62,7 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv2)
-            # print("conv2:", conv2)
+            print("conv2:", conv2)
 
         with tf.variable_scope('fullycon') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -75,12 +75,12 @@ class TFPModel(object):
                 weights_initializer=kernel_init, biases_initializer=bias_init,
                 reuse=scope.reuse, trainable=True, scope=scope)
             self._activation_summary(fullycon)
-            # print("fullycon:", fullycon)
+            print("fullycon:", fullycon)
 
         with tf.variable_scope('reshape_back') as scope:
             reshape_back = tf.reshape(
                 fullycon, [self.batch_size, self.num_steps, self.hidden_size], name=scope.name)
-            # print("reshape_back:", reshape_back)
+            print("reshape_back:", reshape_back)
 
         with tf.variable_scope('lstm') as scope:
             cells = rnn.MultiRNNCell(
@@ -96,7 +96,7 @@ class TFPModel(object):
             lstm_input = tf.unstack(reshape_back, num=self.num_steps, axis=1)
             outputs, states = rnn.static_rnn(
                 cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
-            # print("last_logit:", outputs[-1])
+            print("last_logit:", outputs[-1])
 
             ## vanilla method
             # lstm_input = reshape_back
@@ -119,17 +119,53 @@ class TFPModel(object):
                             forget_bias=1.0, state_is_tuple=True,
                             activation=tf.tanh, reuse=tf.get_variable_scope().reuse)
 
-    def losses(self, logits, labels):
+    def losses(self, logits, labels, is_squared=True, is_reduction=True):
+        """
+        Param:
+            logits:
+            labels:
+            is_squared:
+            is_reduction:
+        """
+        if is_squared == False:
+            with tf.name_scope('l1_loss'):
+                if is_reduction:
+                    l1_loss = tf.losses.absolute_difference(logits, labels)
+                else:
+                    l1_loss = tf.losses.absolute_difference(logits, labels, 
+                    weights=1.0, scope=None, loss_collection=tf.GraphKeys.LOSSES, reduction=tf.losses.Reduction.NONE)
+            
+            tf.summary.scalar('l1_loss', l1_loss)
+            return l1_loss
+        else:
+            with tf.name_scope('l2_loss'):
+                l2_loss = tf.squared_difference(logits, labels)
+                if is_reduction:
+                    l2_loss = tf.reduce_mean(l2_loss)
+            
+            tf.summary.scalar('l2_loss', l2_loss)
+            return l2_loss
+
+    def l1_losses(self, logits, labels):
         """
         Param:
             logits:
             labels:
         """
-        with tf.name_scope('l2_loss'):
+        with tf.name_scope('difference'):
+            # losses = tf.sqrt (tf.squared_difference(logits, labels) )
+            losses = tf.losses.absolute_difference(logits, labels, weights=1.0, scope=None, loss_collection=tf.GraphKeys.LOSSES)
+        return losses
+
+    def l2_losses(self, logits, labels):
+        """
+        Param:
+            logits:
+            labels:
+        """
+        with tf.name_scope('squared_difference'):
             losses = tf.squared_difference(logits, labels)
-            l2_loss = tf.reduce_mean(losses)
-        tf.summary.scalar('l2_loss', l2_loss)
-        return l2_loss
+        return losses
 
     def MAPE(self, logits, labels):
         """
@@ -139,9 +175,12 @@ class TFPModel(object):
         """
         with tf.name_scope('MAPE'):
             diff = tf.abs(tf.subtract(logits, labels))
-            norn = tf.divide(diff, labels)
+            con_less = tf.less(labels, 1)
+            norn_less = tf.divide(diff, 1)
+            norn_normal = tf.divide(diff, labels)
+            norn = tf.where(con_less, norn_less, norn_normal)
             mape = tf.reduce_mean(norn)
-        tf.summary.scalar('MAPE', mape)
+        # tf.summary.scalar('MAPE', mape)
         return mape
 
     def train(self, loss, global_step=None):
@@ -156,20 +195,6 @@ class TFPModel(object):
             self.learning_rate, self.decay_rate, self.momentum,
             1e-10).minimize(loss, global_step=global_step)
         return train_op
-    
-
-    def _activation_summary(self, x):
-        """Helper to create summaries for activations.
-        Creates a summary that provides a histogram of activations.
-        Creates a summary that measures the sparsity of activations.
-        Args:
-        x: Tensor
-        Returns: nothing
-        """
-        tensor_name = x.op.name
-        tf.summary.histogram(tensor_name + '/activations', x)
-        tf.summary.scalar(tensor_name + '/sparsity',
-                        tf.nn.zero_fraction(x))
 
 
 if __name__ == "__main__":

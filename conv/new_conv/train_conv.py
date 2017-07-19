@@ -5,29 +5,33 @@ from __future__ import print_function
 import os
 import numpy as np
 import tensorflow as tf
-import model_lstm_fcon
+import model_conv
+
+
+raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_20.npy"
+label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_20.npy"
 
 FLAGS = tf.app.flags.FLAGS
 
+tf.app.flags.DEFINE_string("raw_data", "batch_no_over_data_mile_15_28.5_total_60_predict_1_20.npy",
+                           "raw data name")
+tf.app.flags.DEFINE_string("label_data", "label_no_over_data_mile_15_28.5_total_60_predict_1_20.npy",
+                           "label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + "predict_1_20" + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'log/',
+tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + "predict_1_20" + '/log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 100,
+tf.app.flags.DEFINE_integer('total_epoches', 10000,
                             "total training epoches")
-tf.app.flags.DEFINE_integer('hidden_size', 56,
-                            "size of LSTM hidden memory")
-tf.app.flags.DEFINE_integer('rnn_layers', 1,
-                            "number of stacked lstm")
-tf.app.flags.DEFINE_integer('num_steps', 12,
+tf.app.flags.DEFINE_integer('vd_amount', 28,
+                            "vd_amount")
+tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
-tf.app.flags.DEFINE_boolean('is_float32', True,
-                            "data type of the LSTM state, float32 if true, float16 otherwise")
-tf.app.flags.DEFINE_float('learning_rate', 0.00001,
+tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           "learning rate of RMSPropOptimizer")
 tf.app.flags.DEFINE_float('decay_rate', 0.99,
                           "decay rate of RMSPropOptimizer")
@@ -46,10 +50,8 @@ class TestingConfig(object):
         self.log_dir = FLAGS.log_dir
         self.batch_size = FLAGS.batch_size
         self.total_epoches = FLAGS.total_epoches
-        self.hidden_size = FLAGS.hidden_size
-        self.rnn_layers = FLAGS.rnn_layers
-        self.num_steps = FLAGS.num_steps
-        self.is_float32 = FLAGS.is_float32
+        self.vd_amount = FLAGS.vd_amount
+        self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
         self.decay_rate = FLAGS.decay_rate
         self.momentum = FLAGS.momentum
@@ -60,10 +62,8 @@ class TestingConfig(object):
         print("log_dir:", self.log_dir)
         print("batch_size:", self.batch_size)
         print("total_epoches:", self.total_epoches)
-        print("hidden_size:", self.hidden_size)
-        print("rnn_layers:", self.rnn_layers)
-        print("num_steps:", self.num_steps)
-        print("is_float32:", self.is_float32)
+        print("vd_amount:", self.vd_amount)
+        print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
         print("decay_rate:", self.decay_rate)
         print("momentum:", self.momentum)
@@ -74,16 +74,12 @@ def main(_):
         global_steps = tf.train.get_or_create_global_step(graph=graph)
 
         # read data
-        # raw_data_t = np.load(FLAGS.data_dir + "batch_data_60_av_5.npy")
-        # label_data_t = np.load(FLAGS.data_dir + "label_data_60_av_5.npy")
-        raw_data_t = np.load(FLAGS.data_dir + "batch_data_180_av_st_7_ed_21.npy")
-        label_data_t = np.load(FLAGS.data_dir + "label_data_180_av_st_7_ed_21.npy")
-        # test_raw_data = np.load(FLAGS.data_dir + "test_batch_data_av_5.npy")
-        # test_label_data = np.load(FLAGS.data_dir + "test_label_data_av_5.npy")
+        raw_data_t = np.load(FLAGS.data_dir + FLAGS.raw_data)
+        label_data_t = np.load(FLAGS.data_dir + FLAGS.label_data)
 
         # select flow from [density, flow, speed, weekday, time]
-        raw_data_t = raw_data_t[:, :, :, 1]
-        label_data_t = label_data_t[:, :, 1]
+        raw_data_t = raw_data_t[:, :, :, :5]
+        label_data_t = label_data_t[:, :, 0:12, 1:1 + 2]
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
@@ -98,13 +94,12 @@ def main(_):
         np.random.shuffle(concat)
 
         train_raw_data_t, test_raw_data = np.split(
-            raw_data, [raw_data.shape[0] * 9 // 10])
+            raw_data, [raw_data.shape[0] * 8 // 9])
         train_label_data_t, test_label_data = np.split(
-            label_data, [label_data.shape[0] * 9 // 10])
+            label_data, [label_data.shape[0] * 8 // 9])
 
-        # np.save("test_batch_data_180_av_st_7_ed_21", test_raw_data)
-        # np.save("test_label_data_180_av_st_7_ed_21", test_label_data)
-        # exit('saved')
+        np.save("test_raw_total_60_predict_1_20", test_raw_data)
+        np.save("test_label_total_60_predict_1_20", test_label_data)
 
         # concat for later shuffle
         concat = np.c_[train_raw_data_t.reshape(len(train_raw_data_t), -1),
@@ -118,16 +113,16 @@ def main(_):
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.num_steps, 28], name='input_data')
+                              FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, 28], name='label_data')
+                              FLAGS.batch_size, 4, 12, 2], name='label_data')
 
         # config setting
         config = TestingConfig()
         config.show()
 
         # model
-        model = model_lstm_fcon.TFPModel(config, is_training=True)
+        model = model_conv.TFPModel(config, is_training=True)
         logits_op = model.inference(inputs=X_ph)
         loss_op = model.losses(logits=logits_op, labels=Y_ph)
         train_op = model.train(loss=loss_op, global_step=global_steps)
@@ -147,6 +142,7 @@ def main(_):
         # Session
         with tf.Session() as sess:
             sess.run(init)
+
             for epoch_steps in range(FLAGS.total_epoches):
                 # # shuffle
                 np.random.shuffle(concat)
@@ -155,8 +151,11 @@ def main(_):
                 train_loss_sum = 0.0
                 train_batches_amount = len(train_raw_data) // FLAGS.batch_size
                 for i in range(train_batches_amount):
-                    current_X_batch = train_raw_data[i:i + FLAGS.batch_size]
-                    current_Y_batch = train_label_data[i:i + FLAGS.batch_size]
+                    temp_id = i * FLAGS.batch_size
+                    current_X_batch = train_raw_data[temp_id:temp_id +
+                                                     FLAGS.batch_size]
+                    current_Y_batch = train_label_data[temp_id:temp_id +
+                                                       FLAGS.batch_size]
                     summary, _, loss_value, steps = \
                         sess.run([merged_op, train_op, loss_op, global_steps], feed_dict={
                                  X_ph: current_X_batch, Y_ph: current_Y_batch})
@@ -169,8 +168,11 @@ def main(_):
                 mape_loss_sum = 0.0
                 test_batches_amount = len(test_raw_data) // FLAGS.batch_size
                 for i in range(test_batches_amount):
-                    current_X_batch = test_raw_data[i:i + FLAGS.batch_size]
-                    current_Y_batch = test_label_data[i:i + FLAGS.batch_size]
+                    temp_id = i * FLAGS.batch_size
+                    current_X_batch = test_raw_data[temp_id:temp_id +
+                                                    FLAGS.batch_size]
+                    current_Y_batch = test_label_data[temp_id:temp_id +
+                                                      FLAGS.batch_size]
                     test_loss_value, mape_loss_value = sess.run([loss_op, mape_op], feed_dict={
                         X_ph: current_X_batch, Y_ph: current_Y_batch})
                     test_loss_sum += test_loss_value
@@ -200,7 +202,7 @@ def main(_):
                 print("ephoches: ", epoch_steps, "trainng loss: ", train_mean_loss,
                       "testing loss: ", test_mean_loss, "testing mape: ", mape_mean, "%")
 
-                if (epoch_steps + 1) % 50 == 0:
+                if (epoch_steps + 1) % 25 == 0:
                     # Save the variables to disk.
                     save_path = saver.save(
                         sess, FLAGS.checkpoints_dir, global_step=epoch_steps)

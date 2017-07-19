@@ -20,13 +20,8 @@ class TFPModel(object):
         """
         self.is_training = is_training
         self.batch_size = config.batch_size
-        self.hidden_size = config.hidden_size
-        self.rnn_layers = config.rnn_layers
-        self.num_steps = config.num_steps
-        if config.is_float32:
-            self.data_type = tf.float32
-        else:
-            self.data_type = tf.float16
+        self.vd_amount = config.vd_amount
+        self.total_interval = config.total_interval
         self.learning_rate = config.learning_rate
         self.decay_rate = config.decay_rate
         self.momentum = config.momentum
@@ -35,89 +30,72 @@ class TFPModel(object):
         """
         Param:
         """
-        with tf.variable_scope('reshape') as scope:
-            reshaped_input = tf.reshape(
-                inputs, [self.batch_size * self.num_steps, 28, 5], name=scope.name)
-            # print("reshape:", reshaped_input)
-
+        print(inputs)
         with tf.variable_scope('conv1') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv1 = tf.layers.conv1d(inputs=reshaped_input, filters=10, kernel_size=3,
-                                     strides=2, padding='valid', activation=tf.nn.relu,
+            conv1 = tf.layers.conv2d(inputs=inputs, filters=64, kernel_size=3,
+                                     strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv1)
-            # print("conv1:", conv1)
+            print("conv1:", conv1)
+
+        # with tf.variable_scope('max_pool') as scope:
+        #     max_pool = tf.layers.max_pooling2d(
+        #         inputs=conv1,
+        #         pool_size=2,
+        #         strides=2,
+        #         padding='valid',
+        #         data_format='channels_last',
+        #         name=scope.name
+        #     )
+        #     print("max_pool:", max_pool)
 
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv2 = tf.layers.conv1d(inputs=conv1, filters=10, kernel_size=3,
-                                     strides=2, padding='valid', activation=tf.nn.relu,
+            conv2 = tf.layers.conv2d(inputs=conv1, filters=128, kernel_size=3,
+                                     strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv2)
-            # print("conv2:", conv2)
+            print("conv2:", conv2)
 
-        with tf.variable_scope('fullycon') as scope:
+        with tf.variable_scope('conv3') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            flatten = tf.contrib.layers.flatten(inputs=conv2, scope=scope.name)
-            fullycon = tf.contrib.layers.fully_connected(
-                inputs=flatten, num_outputs=self.hidden_size, activation_fn=tf.nn.relu,
-                weights_initializer=kernel_init, biases_initializer=bias_init,
-                reuse=scope.reuse, trainable=True, scope=scope)
-            self._activation_summary(fullycon)
-            # print("fullycon:", fullycon)
+            conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=3,
+                                     strides=1, padding='valid', activation=tf.nn.relu,
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
+                                     name=scope.name, reuse=scope.reuse)
+            self._activation_summary(conv3)
+            print("conv3:", conv3)
 
-        with tf.variable_scope('reshape_back') as scope:
-            reshape_back = tf.reshape(
-                fullycon, [self.batch_size, self.num_steps, self.hidden_size], name=scope.name)
-            # print("reshape_back:", reshape_back)
+        with tf.variable_scope('full') as scope:
+            kernel_init = tf.truncated_normal_initializer(
+                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+            bias_init = tf.random_normal_initializer(
+                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+            full = tf.layers.conv2d(inputs=conv3, filters=2, kernel_size=[3,9],
+                                     strides=1, padding='valid', activation=tf.nn.relu,
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
+                                     name=scope.name, reuse=scope.reuse)
+            self._activation_summary(full)
+            print("full:", full)
 
-        with tf.variable_scope('lstm') as scope:
-            cells = rnn.MultiRNNCell(
-                [self.lstm_cell() for _ in range(self.rnn_layers)])
+        with tf.variable_scope('reshape') as scope:
+            reshaped = tf.reshape(
+                full, [-1, 4, 14,2], name=scope.name)
+            print("reshape:", reshaped)
 
-            ## dynamic method
-            # lstm_input = reshape_back
-            # outputs, states = tf.nn.dynamic_rnn(
-            #     cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
-            # print("last_logit:", outputs[:, -1, :])
-
-            ## static method
-            lstm_input = tf.unstack(reshape_back, num=self.num_steps, axis=1)
-            outputs, states = rnn.static_rnn(
-                cell=cells, inputs=lstm_input, dtype=tf.float32, scope=scope)
-            # print("last_logit:", outputs[-1])
-
-            ## vanilla method
-            # lstm_input = reshape_back
-            # state = cell.zero_state(
-            #     batch_size=self.batch_size, dtype=tf.float32)
-            # logits_list = []
-            # for time_step in range(self.num_steps):
-            #     if time_step > 0 or not self.is_training:
-            #         tf.get_variable_scope().reuse_variables()
-            #     cell_out, state = cell(
-            #         inputs=lstm_input[:, time_step, :], state=state, scope=scope)
-            #     logits_list.append(cell_out)
-            # last_logit = logits_list[-1]
-            # print ("last_logit:", last_logit)
-
-        return outputs[-1]
-
-    def lstm_cell(self):
-        return rnn.LSTMCell(self.hidden_size, use_peepholes=True, initializer=None, num_proj=28,
-                            forget_bias=1.0, state_is_tuple=True,
-                            activation=tf.tanh, reuse=tf.get_variable_scope().reuse)
+        return reshaped
 
     def losses(self, logits, labels):
         """
@@ -131,6 +109,16 @@ class TFPModel(object):
         tf.summary.scalar('l2_loss', l2_loss)
         return l2_loss
 
+    def l2_losses(self, logits, labels):
+        """
+        Param:
+            logits:
+            labels:
+        """
+        with tf.name_scope('squared_difference'):
+            losses = tf.squared_difference(logits, labels)
+        return losses
+
     def MAPE(self, logits, labels):
         """
         Param:
@@ -139,7 +127,10 @@ class TFPModel(object):
         """
         with tf.name_scope('MAPE'):
             diff = tf.abs(tf.subtract(logits, labels))
-            norn = tf.divide(diff, labels)
+            con_less = tf.less(labels, 1)
+            norn_less = tf.divide(diff, 1)
+            norn_normal = tf.divide(diff, labels)
+            norn = tf.where(con_less, norn_less, norn_normal)
             mape = tf.reduce_mean(norn)
         tf.summary.scalar('MAPE', mape)
         return mape
@@ -156,7 +147,6 @@ class TFPModel(object):
             self.learning_rate, self.decay_rate, self.momentum,
             1e-10).minimize(loss, global_step=global_step)
         return train_op
-    
 
     def _activation_summary(self, x):
         """Helper to create summaries for activations.
@@ -172,5 +162,28 @@ class TFPModel(object):
                         tf.nn.zero_fraction(x))
 
 
+class TestingConfig(object):
+    """
+    testing config
+    """
+
+    def __init__(self):
+        self.data_dir = "FLAGS.data_dir"
+        self.checkpoints_dir = "FLAGS.checkpoints_dir"
+        self.log_dir = "FLAGS.log_dir"
+        self.batch_size = 512
+        self.total_epoches = 10
+        self.vd_amount = 28
+        self.total_interval = 12
+        self.learning_rate = 0.001
+        self.decay_rate = 0.99
+        self.momentum = 0.9
+
+def test():
+    X_ph = tf.placeholder(dtype=tf.float32, shape=[
+                            512, 12, 28, 5], name='input_data')
+    model = TFPModel(TestingConfig())
+    model.inference(X_ph)
+
 if __name__ == "__main__":
-    pass
+    test()

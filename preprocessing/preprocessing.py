@@ -1,21 +1,39 @@
 import numpy as np
 
 
-predict_internal = 5
+# Parameters
+predict_time = 20
 num_steps = 12 
-time_preried = predict_internal * num_steps
+time_preried = time_interval * num_steps
 
 st = 15
 ed = 28.5
 
 start_predict = 1
-predict_num_steps = 6
-predict_time = predict_internal * predict_num_steps
+predict_epoch = 4
 
 is_over = 0
 
+root_path = "/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/"
+data_path = "/home/nctucgv/Documents/TrafficVis_Run/"
+
+
 def read_file(filename, vec, week_list, time_list, week, st, ed):
-    filename = "../../VD_data/mile_base/" + filename
+    """
+    Param:
+        filename:
+        vec:
+        week_list:
+        time_list:
+        week:
+        st:
+        ed:
+    """
+
+    # 1. Get real file path
+    filename = data_path + "VD_data/mile_base/" + filename
+
+    # 2. Open file as binary file 
     with open(filename, "rb") as binaryfile:
         binaryfile.seek(0)
         ptr = binaryfile.read(4)
@@ -43,8 +61,7 @@ def read_file(filename, vec, week_list, time_list, week, st, ed):
                     ptr = binaryfile.read(2)
                     tmp = int.from_bytes(ptr, byteorder='little')
                     vec[vt + j][index] = tmp
-                    week_list[wt +
-                              j][index] = (week + int(j / data_per_day)) % 7
+                    week_list[wt +j][index] = (week + int(j / data_per_day)) % 7
                     time_list[tt + j][index] = j % data_per_day
                 index = index + 1
             elif ed < i / 2:
@@ -57,14 +74,14 @@ raw_data = []
 
 
 try:
-     raw_data = np.load("fix_raw_data_"+str(st)+"_"+str(ed)+".npy")
+     raw_data = np.load(root_path+"fix_raw_data_"+str(st)+"_"+str(ed)+".npy")
 except:
     pass
 
 if len(raw_data) == 0:
 
     try:
-        raw_data = np.load("raw_data.npy")
+        raw_data = np.load(root_path+"raw_data.npy")
     except:
         pass
 
@@ -173,63 +190,61 @@ batch_data = []
 label_data = []
 
 i = 0
-# for i in range(len(raw_data) - time_preried - predict_internal):
-while i < len(raw_data) - time_preried - predict_internal:
+# for i in range(len(raw_data) - time_preried - time_interval):
+while i < len(raw_data) - time_preried - time_interval*predict_epoch:
     tmp = raw_data[i:i+time_preried]
     ret = []
     is_good = 0
     # for training data
     j = 0
     while j < len(tmp):
-        a = tmp[j:j+predict_internal]
+        a = tmp[j:j+time_interval]
         sump = 0
         flg = 0
         for k in a:
             if k[0][0] != -1:
                 sump += k
                 flg += 1
-        if flg <= predict_internal - 2:
+        if flg <= time_interval - 2:
             is_good += 1
             break
         sump = sump / flg
         ret.append(sump)
                 
-        j += predict_internal
+        j += time_interval
 
     if is_good > 0:
         i += 1
         continue
 
     # for label data
-    tmp = raw_data[i+time_preried+start_predict-1 : i+time_preried+start_predict-1+predict_time]
+    tmp = raw_data[i+time_preried+start_predict-1:i+time_preried+start_predict-1+time_interval*predict_epoch]
     ret1 = []
 
     j = 0
     while j < len(tmp):
-        a = tmp[j:j+predict_internal]
+        a = tmp[j:j+time_interval]
         sump = 0
         flg = 0
         for k in a:
             if k[0][0] != -1:
                 sump += k
                 flg += 1
-        if flg <= predict_internal - 2:
+        if flg <= time_interval - 2:
             is_good += 1
             break
         sump = sump / flg
         ret1.append(sump)
                 
-        j += predict_internal
+        j += time_interval
 
     if is_good > 0:
         i += 1
         continue
     else:
-        # print(ret1)
-        # input("!!")
         batch_data.append(ret)
         label_data.append(ret1)
-        i += predict_internal
+        i += time_interval
     
     print(i)
 
@@ -237,12 +252,12 @@ while i < len(raw_data) - time_preried - predict_internal:
 print(len(batch_data))
 
 if is_over == 0:
-    np.save("cnn_batch_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), batch_data)
-    np.save("cnn_label_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), label_data)    
+    np.save(root_path+"batch_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict + predict_epoch*time_interval - 1), batch_data)
+    np.save(root_path+"label_no_over_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict + predict_epoch*time_interval - 1), label_data)    
 
 else:
-    np.save("batch_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), batch_data)
-    np.save("label_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_internal-1), label_data)    
+    np.save(root_path+"batch_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_epoch*time_interval - 1), batch_data)
+    np.save(root_path+"label_data_mile_"+str(st)+"_"+str(ed)+"_total_"+str(time_preried)+"_predict_"+str(start_predict)+"_"+str(start_predict+predict_epoch*time_interval - 1), label_data)    
 
 
 print("Finish")

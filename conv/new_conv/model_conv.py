@@ -83,19 +83,19 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv4 = tf.layers.conv2d(inputs=conv3, filters=2, kernel_size=[3, 5],
+            conv4 = tf.layers.conv2d(inputs=conv3, filters=24, kernel_size=[3, 16],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             self._activation_summary(conv4)
             print("conv4:", conv4)
 
-        # with tf.variable_scope('reshape') as scope:
-        #     reshaped = tf.reshape(
-        #         full, [-1, 4, 14,2], name=scope.name)
-        #     print("reshape:", reshaped)
+        with tf.variable_scope('reshape') as scope:
+            reshaped = tf.reshape(
+                conv4, [-1, 4, 12, 2], name=scope.name)
+            print("reshape:", reshaped)
 
-        return conv4
+        return reshaped
 
     def losses(self, logits, labels):
         """

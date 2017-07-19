@@ -79,7 +79,7 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time]
         raw_data_t = raw_data_t[:, :, :, :5]
-        label_data_t = label_data_t[:, :, 0:12, 1:1 + 2]
+        label_data_t = label_data_t[:, :, 0:12, 1:1 + 1]
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
@@ -115,7 +115,7 @@ def main(_):
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, 4, 12, 2], name='label_data')
+                              FLAGS.batch_size, 4, 12, 1], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -126,7 +126,7 @@ def main(_):
         logits_op = model.inference(inputs=X_ph)
         loss_op = model.losses(logits=logits_op, labels=Y_ph)
         train_op = model.train(loss=loss_op, global_step=global_steps)
-        mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
+        # mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
 
         # summary
         merged_op = tf.summary.merge_all()
@@ -173,10 +173,9 @@ def main(_):
                                                     FLAGS.batch_size]
                     current_Y_batch = test_label_data[temp_id:temp_id +
                                                       FLAGS.batch_size]
-                    test_loss_value, mape_loss_value = sess.run([loss_op, mape_op], feed_dict={
+                    test_loss_value = sess.run(loss_op, feed_dict={
                         X_ph: current_X_batch, Y_ph: current_Y_batch})
                     test_loss_sum += test_loss_value
-                    mape_loss_sum += mape_loss_value
 
                 # train mean ephoch loss
                 train_mean_loss = train_loss_sum / train_batches_amount

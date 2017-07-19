@@ -1,6 +1,6 @@
 import numpy as np
 
-
+# Parameters
 predict_time = 20
 num_steps = 12 
 time_preried = predict_time * num_steps
@@ -15,8 +15,23 @@ is_over = 0
 root_path = "/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/"
 data_path = "/home/nctucgv/Documents/TrafficVis_Run/"
 
+
 def read_file(filename, vec, week_list, time_list, week, st, ed):
+    """
+    Param:
+        filename:
+        vec:
+        week_list:
+        time_list:
+        week:
+        st:
+        ed:
+    """
+
+    # 1. Get real file path
     filename = data_path + "VD_data/mile_base/" + filename
+
+    # 2. Open file as binary file 
     with open(filename, "rb") as binaryfile:
         binaryfile.seek(0)
         ptr = binaryfile.read(4)

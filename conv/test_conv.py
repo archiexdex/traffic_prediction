@@ -84,7 +84,6 @@ def the_time(time):
 
 
 def write_data(writer, value, week, vd_idx, time):
-    # print(">>>>>>>>>>>")
     summary = tf.Summary()
     summary.value.add(
         simple_value=value, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(week) + " VD:" + str(vd_idx))

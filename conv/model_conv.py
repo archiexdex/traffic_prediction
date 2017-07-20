@@ -12,7 +12,7 @@ class TFPModel(object):
     The Traffic Flow Prediction Modle
     """
 
-    def __init__(self, config):
+    def __init__(self, config, is_training=True):
         """
         Param:
             config: the whole hyper perameters
@@ -20,9 +20,10 @@ class TFPModel(object):
         self.batch_size = config.batch_size
         self.vd_amount = config.vd_amount
         self.total_interval = config.total_interval
-        self.learning_rate = config.learning_rate
-        self.decay_rate = config.decay_rate
-        self.momentum = config.momentum
+        if is_training:
+            self.learning_rate = config.learning_rate
+        else:
+            self.learning_rate = 0.0
 
     def inference(self, inputs):
         """

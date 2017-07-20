@@ -9,26 +9,35 @@ import model_conv
 
 FLAGS = tf.app.flags.FLAGS
 
+# path parameters
 tf.app.flags.DEFINE_string("raw_data", "batch_no_over_data_mile_15_28.5_total_60_predict_1_20.npy",
                            "raw data name")
 tf.app.flags.DEFINE_string("label_data", "label_no_over_data_mile_15_28.5_total_60_predict_1_20.npy",
                            "label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', '' + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', '' + 'checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', '' + '/log/',
+tf.app.flags.DEFINE_string('log_dir', '' + 'log/',
                            "summary directory")
+# training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 300,
                             "total training epoches")
+tf.app.flags.DEFINE_integer('save_freq', 25,
+                            "number of epoches to saving model")
 tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
 tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_float('learning_rate', 0.0001,
-                          "learning rate of RMSPropOptimizer")
+                          "learning rate of AdamOptimizer")
+# target parameters
+tf.app.flags.DEFINE_integer('target_vd', 12,
+                            "number of vds to predict")
+tf.app.flags.DEFINE_integer('target_interval', 4,
+                            "number of interval to predict")
 
 
 class TestingConfig(object):
@@ -42,6 +51,7 @@ class TestingConfig(object):
         self.log_dir = FLAGS.log_dir
         self.batch_size = FLAGS.batch_size
         self.total_epoches = FLAGS.total_epoches
+        self.save_freq = FLAGS.save_freq
         self.vd_amount = FLAGS.vd_amount
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
@@ -52,6 +62,7 @@ class TestingConfig(object):
         print("log_dir:", self.log_dir)
         print("batch_size:", self.batch_size)
         print("total_epoches:", self.total_epoches)
+        print("save_freq:", self.save_freq)
         print("vd_amount:", self.vd_amount)
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
@@ -67,7 +78,7 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time]
         raw_data_t = raw_data_t[:, :, :, :5]
-        label_data_t = label_data_t[:, :, 0:14, 1:1 + 2]
+        label_data_t = label_data_t[:, :FLAGS.target_interval, :FLAGS.target_vd, 1:3]
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
@@ -103,18 +114,17 @@ def main(_):
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, 4, FLAGS.vd_amount / 2, 2], name='label_data')
+                              FLAGS.batch_size, FLAGS.target_interval, FLAGS.target_vd, 2], name='label_data')
 
         # config setting
         config = TestingConfig()
         config.show()
 
         # model
-        model = model_conv.TFPModel(config, is_training=True)
+        model = model_conv.TFPModel(config)
         logits_op = model.inference(inputs=X_ph)
         loss_op = model.losses(logits=logits_op, labels=Y_ph)
         train_op = model.train(loss=loss_op, global_step=global_steps)
-        mape_op = model.MAPE(logits=logits_op, labels=Y_ph)
 
         # summary
         merged_op = tf.summary.merge_all()
@@ -153,7 +163,6 @@ def main(_):
 
                 # testing
                 test_loss_sum = 0.0
-                mape_loss_sum = 0.0
                 test_batches_amount = len(test_raw_data) // FLAGS.batch_size
                 for i in range(test_batches_amount):
                     temp_id = i * FLAGS.batch_size
@@ -161,10 +170,9 @@ def main(_):
                                                     FLAGS.batch_size]
                     current_Y_batch = test_label_data[temp_id:temp_id +
                                                       FLAGS.batch_size]
-                    test_loss_value, mape_loss_value = sess.run([loss_op, mape_op], feed_dict={
+                    test_loss_value = sess.run(loss_op, feed_dict={
                         X_ph: current_X_batch, Y_ph: current_Y_batch})
                     test_loss_sum += test_loss_value
-                    mape_loss_sum += mape_loss_value
 
                 # train mean ephoch loss
                 train_mean_loss = train_loss_sum / train_batches_amount
@@ -177,30 +185,22 @@ def main(_):
 
                 # test mean ephoch loss
                 test_mean_loss = test_loss_sum / test_batches_amount
-                mape_mean = (mape_loss_sum / test_batches_amount) * 100.0
                 test_scalar_summary = tf.Summary()
                 test_scalar_summary.value.add(
                     simple_value=test_mean_loss, tag="mean loss")
-                test_scalar_summary.value.add(
-                    simple_value=mape_mean, tag="mean mape (%)")
                 test_summary_writer.add_summary(
                     test_scalar_summary, global_step=steps)
                 test_summary_writer.flush()
 
                 print("ephoches: ", epoch_steps, "trainng loss: ", train_mean_loss,
-                      "testing loss: ", test_mean_loss, "testing mape: ", mape_mean, "%")
+                      "testing loss: ", test_mean_loss)
 
-                if (epoch_steps + 1) % 25 == 0:
+                if epoch_steps % FLAGS.save_freq == 0:
                     # Save the variables to disk.
                     save_path = saver.save(
-                        sess, FLAGS.checkpoints_dir, global_step=epoch_steps)
+                        sess, FLAGS.checkpoints_dir + "model.ckpt",
+                        global_step=epoch_steps)
                     print("Model saved in file: %s" % save_path)
-
-        # TODO: https://www.tensorflow.org/api_docs/python/tf/trai/Supervisor
-        # sv = Supervisor(logdir=FLAGS.checkpoints_dir)
-        # with sv.managed_session(FLAGS.master) as sess:
-        #     while not sv.should_stop():
-        #         sess.run(<my_train_op>)
 
 
 if __name__ == "__main__":

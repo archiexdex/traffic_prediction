@@ -4,6 +4,7 @@ import numpy as np
 # Parameters
 predict_time = 20
 num_steps = 12 
+time_interval = 5
 time_preried = time_interval * num_steps
 
 st = 15
@@ -38,12 +39,12 @@ def read_file(filename, vec, week_list, time_list, week, st, ed):
         binaryfile.seek(0)
         ptr = binaryfile.read(4)
 
-        data_per_day = 1440
+        # 3. Initialize Variable
         VD_size = int.from_bytes(ptr, byteorder='little')
         ptr = binaryfile.read(4)
         day_max = int.from_bytes(ptr, byteorder='little')
 
-        # initialize list
+        data_per_day = 1440
         dis = int((ed - st) * 2 + 1)
         vt = len(vec)
         wt = len(week_list)
@@ -53,6 +54,7 @@ def read_file(filename, vec, week_list, time_list, week, st, ed):
             week_list.append([0] * dis)
             time_list.append([0] * dis)
 
+        # 4. Enumerate data
         index = 0
         for i in range(VD_size):
 
@@ -72,14 +74,16 @@ def read_file(filename, vec, week_list, time_list, week, st, ed):
 
 raw_data = []
 
-
+# If fix_raw_data exist then be happy else QAQ
 try:
      raw_data = np.load(root_path+"fix_raw_data_"+str(st)+"_"+str(ed)+".npy")
 except:
     pass
 
+# If raw_data is zero, go to read data
 if len(raw_data) == 0:
 
+    # If raw_data read before, then be happy
     try:
         raw_data = np.load(root_path+"raw_data.npy")
     except:
@@ -149,6 +153,8 @@ if len(raw_data) == 0:
     b = []
     print("Removing illegal data...")
 
+    # Remove illebal data
+    # If there are zero more than 30 minutes then delete the data else do not delete data
     for i in raw_data:
         t = []
         flg = False
@@ -189,8 +195,8 @@ print("start to distribute data...")
 batch_data = []
 label_data = []
 
+# Enumerate all data for each prediction period
 i = 0
-# for i in range(len(raw_data) - time_preried - time_interval):
 while i < len(raw_data) - time_preried - time_interval*predict_epoch:
     tmp = raw_data[i:i+time_preried]
     ret = []
@@ -205,6 +211,8 @@ while i < len(raw_data) - time_preried - time_interval*predict_epoch:
             if k[0][0] != -1:
                 sump += k
                 flg += 1
+        
+        # Check valid data size is more than time_interval - 2
         if flg <= time_interval - 2:
             is_good += 1
             break
@@ -230,6 +238,7 @@ while i < len(raw_data) - time_preried - time_interval*predict_epoch:
             if k[0][0] != -1:
                 sump += k
                 flg += 1
+        # Check valid data size is more than time_interval - 2
         if flg <= time_interval - 2:
             is_good += 1
             break

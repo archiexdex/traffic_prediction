@@ -7,10 +7,6 @@ import numpy as np
 import tensorflow as tf
 import model_conv
 
-
-raw_data_name = "batch_no_over_data_mile_15_28.5_total_60_predict_1_20.npy"
-label_data_name = "label_no_over_data_mile_15_28.5_total_60_predict_1_20.npy"
-
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string("raw_data", "batch_no_over_data_mile_15_28.5_total_60_predict_1_20.npy",
@@ -19,13 +15,13 @@ tf.app.flags.DEFINE_string("label_data", "label_no_over_data_mile_15_28.5_total_
                            "label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'backlog_new/' + "predict_1_20" + '/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', '' + '/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'backlog_new/' + "predict_1_20" + '/log/',
+tf.app.flags.DEFINE_string('log_dir', '' + '/log/',
                            "summary directory")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 10000,
+tf.app.flags.DEFINE_integer('total_epoches', 300,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('vd_amount', 28,
                             "vd_amount")
@@ -33,10 +29,6 @@ tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           "learning rate of RMSPropOptimizer")
-tf.app.flags.DEFINE_float('decay_rate', 0.99,
-                          "decay rate of RMSPropOptimizer")
-tf.app.flags.DEFINE_float('momentum', 0.9,
-                          "momentum of RMSPropOptimizer")
 
 
 class TestingConfig(object):
@@ -53,8 +45,6 @@ class TestingConfig(object):
         self.vd_amount = FLAGS.vd_amount
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
-        self.decay_rate = FLAGS.decay_rate
-        self.momentum = FLAGS.momentum
 
     def show(self):
         print("data_dir:", self.data_dir)
@@ -65,8 +55,6 @@ class TestingConfig(object):
         print("vd_amount:", self.vd_amount)
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
-        print("decay_rate:", self.decay_rate)
-        print("momentum:", self.momentum)
 
 
 def main(_):
@@ -79,11 +67,7 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time]
         raw_data_t = raw_data_t[:, :, :, :5]
-<<<<<<< HEAD:conv/1-9-128_28/train_conv.py
-        label_data_t = label_data_t[:, :, 0:14, 1:1+2]
-=======
         label_data_t = label_data_t[:, :, 0:14, 1:1 + 2]
->>>>>>> 1b6bd830ecde35bf29629badc71778a607b039a9:conv/train_conv.py
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),

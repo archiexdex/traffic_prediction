@@ -12,13 +12,11 @@ class TFPModel(object):
     The Traffic Flow Prediction Modle
     """
 
-    def __init__(self, config, is_training=True):
+    def __init__(self, config):
         """
         Param:
-            config:
-            is_training:
+            config: the whole hyper perameters
         """
-        self.is_training = is_training
         self.batch_size = config.batch_size
         self.vd_amount = config.vd_amount
         self.total_interval = config.total_interval
@@ -29,41 +27,29 @@ class TFPModel(object):
     def inference(self, inputs):
         """
         Param:
+            inputs: [batch_size, times, vds, features]
         """
-        print(inputs)
+        print("inputs:", inputs)
         with tf.variable_scope('conv1') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv1 = tf.layers.conv2d(inputs=inputs, filters=64, kernel_size=3,
+            conv1 = tf.layers.conv2d(inputs=inputs, filters=64, kernel_size=[3, 5],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
-            self._activation_summary(conv1)
             print("conv1:", conv1)
-
-        # with tf.variable_scope('max_pool') as scope:
-        #     max_pool = tf.layers.max_pooling2d(
-        #         inputs=conv1,
-        #         pool_size=2,
-        #         strides=2,
-        #         padding='valid',
-        #         data_format='channels_last',
-        #         name=scope.name
-        #     )
-        #     print("max_pool:", max_pool)
 
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv2 = tf.layers.conv2d(inputs=conv1, filters=128, kernel_size=3,
+            conv2 = tf.layers.conv2d(inputs=conv1, filters=128, kernel_size=[3, 5],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
-            self._activation_summary(conv2)
             print("conv2:", conv2)
 
         with tf.variable_scope('conv3') as scope:
@@ -71,28 +57,26 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=3,
+            conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3, 5],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
-            self._activation_summary(conv3)
             print("conv3:", conv3)
 
-        with tf.variable_scope('full') as scope:
+        with tf.variable_scope('conv4') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            full = tf.layers.conv2d(inputs=conv3, filters=2, kernel_size=[3,9],
+            conv4 = tf.layers.conv2d(inputs=conv3, filters=24, kernel_size=[3, 16],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
-            self._activation_summary(full)
-            print("full:", full)
+            print("conv4:", conv4)
 
         with tf.variable_scope('reshape') as scope:
             reshaped = tf.reshape(
-                full, [-1, 4, 14,2], name=scope.name)
+                conv4, [-1, 4, 12, 2], name=scope.name)
             print("reshape:", reshaped)
 
         return reshaped
@@ -100,8 +84,8 @@ class TFPModel(object):
     def losses(self, logits, labels):
         """
         Param:
-            logits:
-            labels:
+            logits: [batch_size, times, vds, features]
+            labels: [batch_size, times, vds, features]
         """
         with tf.name_scope('l2_loss'):
             losses = tf.squared_difference(logits, labels)
@@ -111,55 +95,25 @@ class TFPModel(object):
 
     def l2_losses(self, logits, labels):
         """
+        return the l2 loss for each input.
         Param:
-            logits:
-            labels:
+            logits: [batch_size, times, vds, features]
+            labels: [batch_size, times, vds, features]
         """
         with tf.name_scope('squared_difference'):
             losses = tf.squared_difference(logits, labels)
         return losses
 
-    def MAPE(self, logits, labels):
-        """
-        Param:
-            logits:
-            labels:
-        """
-        with tf.name_scope('MAPE'):
-            diff = tf.abs(tf.subtract(logits, labels))
-            con_less = tf.less(labels, 1)
-            norn_less = tf.divide(diff, 1)
-            norn_normal = tf.divide(diff, labels)
-            norn = tf.where(con_less, norn_less, norn_normal)
-            mape = tf.reduce_mean(norn)
-        tf.summary.scalar('MAPE', mape)
-        return mape
-
     def train(self, loss, global_step=None):
         """
         Param:
-            loss:
+            loss: scalar
+            global_step: training steps
         """
-        # train_op = tf.train.AdamOptimizer(
-        #     learning_rate=self.learning_rate).minimize(loss,
-        #                                                global_step=global_step)
-        train_op = tf.train.RMSPropOptimizer(
-            self.learning_rate, self.decay_rate, self.momentum,
-            1e-10).minimize(loss, global_step=global_step)
+        train_op = tf.train.AdamOptimizer(
+            learning_rate=self.learning_rate).minimize(loss,
+                                                       global_step=global_step)
         return train_op
-
-    def _activation_summary(self, x):
-        """Helper to create summaries for activations.
-        Creates a summary that provides a histogram of activations.
-        Creates a summary that measures the sparsity of activations.
-        Args:
-        x: Tensor
-        Returns: nothing
-        """
-        tensor_name = x.op.name
-        tf.summary.histogram(tensor_name + '/activations', x)
-        tf.summary.scalar(tensor_name + '/sparsity',
-                        tf.nn.zero_fraction(x))
 
 
 class TestingConfig(object):
@@ -176,14 +130,17 @@ class TestingConfig(object):
         self.vd_amount = 28
         self.total_interval = 12
         self.learning_rate = 0.001
-        self.decay_rate = 0.99
-        self.momentum = 0.9
+
 
 def test():
+    """
+    testing if the model runable
+    """
     X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                            512, 12, 28, 5], name='input_data')
+        512, 12, 28, 5], name='input_data')
     model = TFPModel(TestingConfig())
     model.inference(X_ph)
+
 
 if __name__ == "__main__":
     test()

@@ -11,9 +11,9 @@ import model_3dcnn
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
-tf.app.flags.DEFINE_string("train_data", "",
+tf.app.flags.DEFINE_string("train_data", "train_data.npy",
                            "training data name")
-tf.app.flags.DEFINE_string("test_data", "",
+tf.app.flags.DEFINE_string("test_data", "test_data.npy",
                            "testing data name")
 tf.app.flags.DEFINE_string("train_label", "",
                            "training label data name")
@@ -59,6 +59,8 @@ class ModelConfig(object):
         self.save_freq = FLAGS.save_freq
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
+        self.row_size = 32
+        self.col_size = 32
 
     def show(self):
         print("data_dir:", self.data_dir)
@@ -69,6 +71,8 @@ class ModelConfig(object):
         print("save_freq:", self.save_freq)
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
+        print("row_size:", self.row_size)
+        print("col_size:", self.col_size)
 
 
 def main(_):
@@ -77,15 +81,15 @@ def main(_):
         config = ModelConfig()
         config.show()
         # load data
-        # train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
-        # test_data = np.load(FLAGS.data_dir + FLAGS.test_data)
-        # train_label = np.load(FLAGS.data_dir + FLAGS.train_label)
-        # test_label = np.load(FLAGS.data_dir + FLAGS.test_label)
-        # dummy data for testing
-        train_data = np.ones(shape=[100, 64, 64, 30, 5], dtype=np.float32)
-        test_data = np.ones(shape=[32, 64, 64, 30, 5], dtype=np.float32)
-        train_label = np.zeros(shape=[100, 64, 64], dtype=np.float32)
-        test_label = np.zeros(shape=[32, 64, 64], dtype=np.float32)
+        train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
+        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)
+        train_label = np.load(FLAGS.data_dir + FLAGS.train_label)
+        test_label = np.load(FLAGS.data_dir + FLAGS.test_label)
+        # # dummy data for testing
+        # train_data = np.ones(shape=[100, 32, 32, 12, 5], dtype=np.float32)
+        # test_data = np.ones(shape=[32, 32, 32, 12, 5], dtype=np.float32)
+        # train_label = np.zeros(shape=[100, 35], dtype=np.float32)
+        # test_label = np.zeros(shape=[32, 35], dtype=np.float32)
         # number of batches
         train_num_batch = train_data.shape[0] // FLAGS.batch_size
         test_num_batch = test_data.shape[0] // FLAGS.batch_size

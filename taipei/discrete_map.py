@@ -53,24 +53,56 @@ def check_duplicate(vd_discrete_list):
 
     return True
 
+def main():
+    """
+    main
+    """
+    # 1. load raw_data {'key': 'value' -> 'vd_id': '[intervals, features]'}
+    raw_data = np.load('file_name.npy')
+    raw_data=raw_data.item()
+    # get size
+    target_map_rows = 64
+    target_map_cols = 64
+    num_intervals = raw_data['VMTG520'].shape[0]
+    num_features = raw_data['VMTG520'].shape[1]
+    # 2. load gps_data {'key': 'value' -> 'vd_id': '[gps]'}
+    raw_gps_data = np.load('file_name.npy')
+    raw_gps_data = raw_gps_data.item()
+    # 3. generate smallest discrete map from gps_data
+    # read vd_list.txt
+    vd_list = []
+    with open('vd_list.txt') as f:
+        vd_list.append(f.readline())
+    vd_gps_list = []
+    for v in vd_list:
+        vd_gps_list.append(raw_gps_data[v])
+    discreted_gps_list = discrete_map(target_map_rows, target_map_cols, vd_gps_list)
+    # 4. discreted_map = zeros[row, col, intervals, features]
+    discreted_map = np.zeros(shape=[target_map_rows, target_map_cols, num_intervals, num_features])
+    # 5. discreted_map[discrete_longitude][discrete_latitude] = raw_data['vd_id']
+    for v in discreted_gps_list:
+        discreted_map[v[0]][v[1]] = raw_data[]
+    # 6. generate data from shape=[row, col, intervals, features] to shape=[num_data, row, col, 12, features]
+    # 7. split data into 9:1 as num_train_data:num_test_data
 
 def test():
     """
     test
     """
-    vs_gps_list = []
-    vs_gps_list.append([123.123123, 23.345123])
-    vs_gps_list.append([123.321321, 23.345123])
-    vs_gps_list.append([123.123123, 23.543543])
-    vs_gps_list.append([123.345345, 23.876876])
-    vs_gps_list = np.array(vs_gps_list)
-    print(vs_gps_list.shape)
+    vd_gps_list = []
+    vd_gps_list.append([123.123123, 23.345123])
+    vd_gps_list.append([123.321321, 23.345123])
+    vd_gps_list.append([123.123123, 23.543543])
+    vd_gps_list.append([123.345345, 23.876876])
+    vd_gps_list = np.array(vd_gps_list)
+    print(vd_gps_list.shape)
 
-    discreted_list = discrete_map(10, 10, vs_gps_list)
+    discreted_list = discrete_map(10, 10, vd_gps_list)
     print(check_duplicate(discreted_list))
 
     visulize_map(10, 10, discreted_list)
 
 
 if __name__ == '__main__':
-    test()
+    # test()
+    main()

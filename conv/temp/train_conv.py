@@ -10,11 +10,11 @@ import model_conv
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
-tf.app.flags.DEFINE_string("raw_data", "batch_no_over_data_mile_15_28.5_total_60_predict_1_20.npy",
+tf.app.flags.DEFINE_string("raw_data", "../../taipei/train_data.npy",
                            "raw data name")
-tf.app.flags.DEFINE_string("label_data", "label_no_over_data_mile_15_28.5_total_60_predict_1_20.npy",
+tf.app.flags.DEFINE_string("label_data", "../../taipei/train_label.npy",
                            "label data name")
-tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
+tf.app.flags.DEFINE_string('data_dir', '',
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', '' + 'checkpoints/',
                            "training checkpoints directory")
@@ -27,16 +27,16 @@ tf.app.flags.DEFINE_integer('total_epoches', 300,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
-tf.app.flags.DEFINE_integer('vd_amount', 28,
+tf.app.flags.DEFINE_integer('vd_amount', 34,
                             "vd_amount")
 tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           "learning rate of AdamOptimizer")
 # target parameters
-tf.app.flags.DEFINE_integer('target_vd', 12,
+tf.app.flags.DEFINE_integer('target_vd', 34,
                             "number of vds to predict")
-tf.app.flags.DEFINE_integer('target_interval', 1,
+tf.app.flags.DEFINE_integer('target_interval', 12,
                             "number of interval to predict")
 
 
@@ -78,8 +78,7 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time]
         raw_data_t = raw_data_t[:, :, :, :5]
-        label_data_t = label_data_t[:,
-                                    :FLAGS.target_interval, :FLAGS.target_vd, 1:3]
+        label_data_t = label_data_t[:, :FLAGS.target_vd]
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
@@ -115,7 +114,7 @@ def main(_):
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.target_interval, FLAGS.target_vd, 2], name='label_data')
+                              FLAGS.batch_size, FLAGS.target_vd], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -196,7 +195,7 @@ def main(_):
                 print("ephoches: ", epoch_steps, "trainng loss: ", train_mean_loss,
                       "testing loss: ", test_mean_loss)
 
-                if epoch_steps % FLAGS.save_freq == 0 and epoch_steps != 0:
+                if epoch_steps % FLAGS.save_freq == 0:
                     # Save the variables to disk.
                     save_path = saver.save(
                         sess, FLAGS.checkpoints_dir + "model.ckpt",

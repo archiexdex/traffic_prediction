@@ -36,7 +36,7 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv1 = tf.layers.conv2d(inputs=inputs, filters=64, kernel_size=[3, 5],
+            conv1 = tf.layers.conv2d(inputs=inputs, filters=64, kernel_size=[3, 3],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
@@ -47,7 +47,7 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv2 = tf.layers.conv2d(inputs=conv1, filters=128, kernel_size=[3, 5],
+            conv2 = tf.layers.conv2d(inputs=conv1, filters=128, kernel_size=[3, 3],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
@@ -58,7 +58,7 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3, 5],
+            conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3, 3],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
@@ -69,7 +69,7 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv4 = tf.layers.conv2d(inputs=conv3, filters=24, kernel_size=[6, 16],
+            conv4 = tf.layers.conv2d(inputs=conv3, filters=34, kernel_size=[6, 28],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
@@ -77,10 +77,11 @@ class TFPModel(object):
 
         with tf.variable_scope('reshape') as scope:
             reshaped = tf.reshape(
-                conv4, [-1, 1, 12, 2], name=scope.name)
+                conv4, [-1, 34], name=scope.name)
             print("reshape:", reshaped)
-        return reshaped
 
+        return reshaped
+    
     def losses(self, logits, labels):
         """
         Param:
@@ -110,14 +111,14 @@ class TFPModel(object):
             loss: scalar
             global_step: training steps
         """
-        train_op = tf.train.AdamOptimizer(
-            learning_rate=self.learning_rate).minimize(loss,
-                                                       global_step=global_step)
-        # train_op = tf.train.RMSPropOptimizer(
-        #     learning_rate=self.learning_rate,
-        #     decay=0.99,
-        #     momentum=0.9,
-        #     epsilon=1e-10).minimize(loss, global_step=global_step)
+        # train_op = tf.train.AdamOptimizer(
+        #     learning_rate=self.learning_rate).minimize(loss,
+        #                                                global_step=global_step)
+        train_op = tf.train.RMSPropOptimizer(
+            learning_rate=self.learning_rate,
+            decay=0.99,
+            momentum=0.9,
+            epsilon=1e-10).minimize(loss, global_step=global_step)
         return train_op
 
 

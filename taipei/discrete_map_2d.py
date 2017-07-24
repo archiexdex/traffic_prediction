@@ -93,43 +93,30 @@ def main():
     with codecs.open('discreted_gps_dict.json', 'w', 'utf-8') as out:
         json.dump(discreted_gps_dict, out, ensure_ascii=False)
     # 4. discreted_map = zeros[row, col, intervals, features]
-    discreted_map = np.zeros(
-        shape=[target_map_rows, target_map_cols, num_intervals, num_features])
+    discreted_map = []
     # visulize_map(target_map_rows, target_map_cols,
     #              list(discreted_gps_dict.values()))
     # 5. discreted_map[discrete_longitude][discrete_latitude] = raw_data['vd_id']
     for _, v in enumerate(discreted_gps_dict):
-        temp_row = discreted_gps_dict[v][0]
-        temp_col = discreted_gps_dict[v][1]
-        print(discreted_map.shape)
         print(np.array(raw_data[v]).shape)
-        if discreted_map.shape[2:4] == np.array(raw_data[v]).shape: # TODO!!!!!!!!!!
-            discreted_map[temp_row][temp_col] = raw_data[v]
+        if 230976 == np.array(raw_data[v]).shape[0]:  # TODO!!!!!!!!!!
+            discreted_map.append(raw_data[v])
+    discreted_map = np.array(discreted_map)
+    discreted_map = np.transpose(discreted_map, [1, 0, 2])
     print(discreted_map.shape)
     # 6. generate data from shape=[row, col, intervals, features] to shape=[num_data, row, col, 12, features]
     repeated_data = []
     # iter all interval
-    for i in range(discreted_map.shape[2] - 12):
-        repeated_data.append(discreted_map[:, :, i:i + 12, :])
+    for i in range(discreted_map.shape[0] - 12):
+        repeated_data.append(discreted_map[i:i + 12, :, :])
     repeated_data = np.array(repeated_data)
     print(repeated_data.shape)
     # 7. generate label data from shape=[row, col, intervals, features] to shape=[num_data, num_vd]
     label_data = []
-    for i in range(12, discreted_map.shape[2]):  # iter all interval
-        label_data.append(discreted_map[:, :, i, 1])  # 1-> flow only
+    for i in range(12, discreted_map.shape[0]):  # iter all interval
+        label_data.append(discreted_map[i, :, 1])  # 1-> flow only
     label_data = np.array(label_data)
     print(label_data.shape)
-    sparse_label_data = []
-    # transform to sparse representation
-    for i, _ in enumerate(label_data):
-        temp = []
-        for _, v in enumerate(discreted_gps_dict):
-            temp_row = discreted_gps_dict[v][0]
-            temp_col = discreted_gps_dict[v][1]
-            temp.append(label_data[i][temp_row][temp_col])
-        sparse_label_data.append(temp)
-    sparse_label_data = np.array(sparse_label_data)
-    print(sparse_label_data.shape)
     # 8. split data into 9:1 as num_train_data:num_test_data
     train_data, test_data = np.split(
         repeated_data, [repeated_data.shape[0] * 9 // 10])
@@ -137,7 +124,7 @@ def main():
     np.save('test_data.npy', test_data)
     print('data saved')
     train_label, test_label = np.split(
-        sparse_label_data, [sparse_label_data.shape[0] * 9 // 10])
+        label_data, [label_data.shape[0] * 9 // 10])
     np.save('train_label.npy', train_label)
     np.save('test_label.npy', test_label)
     print('label saved')

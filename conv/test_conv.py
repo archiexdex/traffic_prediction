@@ -229,11 +229,6 @@ def main(_):
                         predicted_value, losses_value = sess.run([logits_op, losses_op], feed_dict={
                             X_ph: current_X_batch, Y_ph: current_Y_batch})
                         test_loss_sum += losses_value
-                        print(predicted_value[0][0][8][1])
-                        print(predicted_value[0][1][8][1])
-                        print(predicted_value[0][2][8][1])
-                        print(predicted_value[0][3][8][1])
-                        input()
                         for i in range(FLAGS.target_interval):
                             target_interval_range = str((i + 1) * FLAGS.interval)
 

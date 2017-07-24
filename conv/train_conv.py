@@ -16,9 +16,9 @@ tf.app.flags.DEFINE_string("label_data", "label_no_over_data_mile_15_28.5_total_
                            "label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', '' + 'checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'predict_1_20/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', '' + 'log/',
+tf.app.flags.DEFINE_string('log_dir', 'predict_1_20/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
@@ -36,7 +36,7 @@ tf.app.flags.DEFINE_float('learning_rate', 0.0001,
 # target parameters
 tf.app.flags.DEFINE_integer('target_vd', 12,
                             "number of vds to predict")
-tf.app.flags.DEFINE_integer('target_interval', 1,
+tf.app.flags.DEFINE_integer('target_interval', 4,
                             "number of interval to predict")
 
 
@@ -73,43 +73,28 @@ def main(_):
         global_steps = tf.train.get_or_create_global_step(graph=graph)
 
         # read data
-        raw_data_t = np.load(FLAGS.data_dir + FLAGS.raw_data)
-        label_data_t = np.load(FLAGS.data_dir + FLAGS.label_data)
+        raw_data = np.load(FLAGS.data_dir + FLAGS.raw_data)
+        label_data = np.load(FLAGS.data_dir + FLAGS.label_data)
 
         # select flow from [density, flow, speed, weekday, time]
-        raw_data_t = raw_data_t[:, :, :, :5]
-        label_data_t = label_data_t[:,
-                                    :FLAGS.target_interval, :FLAGS.target_vd, 1:3]
+        raw_data = raw_data[:, :, :, :5]
+        label_data = label_data[:,
+                                :FLAGS.target_interval, :FLAGS.target_vd, 1:3]
+        # shuffle
+        shuffled_indices = np.random.shuffle(
+            np.arange(0, raw_data.shape[0], step=1, dtype=np.int32))
 
-        # concat for later shuffle
-        concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),
-                       label_data_t.reshape(len(label_data_t), -1)]
-        raw_data = concat[:, :raw_data_t.size //
-                          len(raw_data_t)].reshape(raw_data_t.shape)
-        label_data = concat[:, raw_data_t.size //
-                            len(raw_data_t):].reshape(label_data_t.shape)
-        del raw_data_t
-        del label_data_t
+        raw_data = raw_data[shuffled_indices]
+        label_data = label_data[shuffled_indices]
 
-        np.random.shuffle(concat)
-
-        train_raw_data_t, test_raw_data = np.split(
+        # split
+        train_raw_data, test_raw_data = np.split(
             raw_data, [raw_data.shape[0] * 8 // 9])
-        train_label_data_t, test_label_data = np.split(
+        train_label_data, test_label_data = np.split(
             label_data, [label_data.shape[0] * 8 // 9])
 
-        np.save("test_raw_total_60_predict_1_20", test_raw_data)
-        np.save("test_label_total_60_predict_1_20", test_label_data)
-
-        # concat for later shuffle
-        concat = np.c_[train_raw_data_t.reshape(len(train_raw_data_t), -1),
-                       train_label_data_t.reshape(len(train_label_data_t), -1)]
-        train_raw_data = concat[:, :train_raw_data_t.size //
-                                len(train_raw_data_t)].reshape(train_raw_data_t.shape)
-        train_label_data = concat[:, train_raw_data_t.size //
-                                  len(train_raw_data_t):].reshape(train_label_data_t.shape)
-        del train_raw_data_t
-        del train_label_data_t
+        # np.save("test_raw_total_60_predict_1_20", test_raw_data)
+        # np.save("test_label_total_60_predict_1_20", test_label_data)
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
@@ -143,8 +128,10 @@ def main(_):
             sess.run(init)
 
             for epoch_steps in range(FLAGS.total_epoches):
-                # # shuffle
-                np.random.shuffle(concat)
+                # shuffle
+                shuffled_indices = np.random.shuffle(shuffled_indices)
+                train_raw_data = train_raw_data[shuffled_indices]
+                train_label_data = train_label_data[shuffled_indices]
 
                 # training
                 train_loss_sum = 0.0

@@ -4,6 +4,7 @@ mile_base/
 *.npy
 *.json
 # log
+log/
 *backlog*/
 # saved model
 checkpoints/

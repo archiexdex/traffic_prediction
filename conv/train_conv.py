@@ -79,11 +79,8 @@ def main(_):
 
         # select flow from [density, flow, speed, weekday, time]
         raw_data_t = raw_data_t[:, :, :, :5]
-<<<<<<< HEAD:conv/1-9-128_28/train_conv.py
-        label_data_t = label_data_t[:, :, 0:14, 1:1+2]
-=======
+
         label_data_t = label_data_t[:, :, 0:14, 1:1 + 2]
->>>>>>> 1b6bd830ecde35bf29629badc71778a607b039a9:conv/train_conv.py
 
         # concat for later shuffle
         concat = np.c_[raw_data_t.reshape(len(raw_data_t), -1),

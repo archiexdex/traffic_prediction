@@ -19,11 +19,11 @@ tf.app.flags.DEFINE_string("train_label", "train_label.npy",
                            "training label data name")
 tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
-tf.app.flags.DEFINE_string('data_dir', '',
+tf.app.flags.DEFINE_string('data_dir', '../preprocess/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', '' + 'checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', '' + 'log/',
+tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,

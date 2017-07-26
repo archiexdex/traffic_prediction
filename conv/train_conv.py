@@ -77,7 +77,7 @@ def main(_):
         label_data = np.load(FLAGS.data_dir + FLAGS.label_data)
 
         # select flow from [density, flow, speed, weekday, time]
-        raw_data = raw_data[:, :, :, :3]
+        raw_data = raw_data[:, :, :, :5]
         label_data = label_data[:,
                                 :FLAGS.target_interval, :FLAGS.target_vd, 1:2]
         # shuffle
@@ -89,6 +89,7 @@ def main(_):
 
         # split
         train_raw_data, test_raw_data = np.split(
+
             raw_data, [raw_data.shape[0] * 8 // 9])
         train_label_data, test_label_data = np.split(
             label_data, [label_data.shape[0] * 8 // 9])
@@ -98,7 +99,7 @@ def main(_):
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 3], name='input_data')
+                              FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
                               FLAGS.batch_size, FLAGS.target_interval, FLAGS.target_vd, 1], name='label_data')
 

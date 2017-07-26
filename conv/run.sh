@@ -27,6 +27,7 @@ dir="predict_"
 predict_st=1
 predict_ed=5
 predict_time=$(($predict_ed-$predict_st+1))
+backlog="backlog/"
 
 while [ "${predict_time}" != "25" ]
 do
@@ -36,7 +37,7 @@ do
     python train_conv.py \
         --raw_data=$raw_data$T"_"$dir$predict_st"_"$predict_ed.npy" \
         --label_data=$label_data$T"_"$dir$predict_st"_"$predict_ed".npy" \
-        --checkpoints_dir='backlog_new/'$dir$predict_st"_"$predict_ed'/checkpoints/'\
-         --log_dir='backlog_new/'$dir$predict_st"_"$predict_ed'/log/'
+        --checkpoints_dir=$backlog$dir$predict_st"_"$predict_ed'/checkpoints/'\
+         --log_dir=$backlog$dir$predict_st"_"$predict_ed'/log/'
     predict_time=$(($predict_time+5))
 done

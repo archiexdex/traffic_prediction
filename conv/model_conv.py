@@ -47,7 +47,7 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv2 = tf.layers.conv2d(inputs=conv1, filters=128, kernel_size=[3, 5],
+            conv2 = tf.layers.conv2d(inputs=conv1, filters=64, kernel_size=[3, 5],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
@@ -58,7 +58,7 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3, 5],
+            conv3 = tf.layers.conv2d(inputs=conv2, filters=64, kernel_size=[3, 5],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
@@ -69,15 +69,28 @@ class TFPModel(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv4 = tf.layers.conv2d(inputs=conv3, filters=2, kernel_size=[3, 5],
+            conv4 = tf.layers.conv2d(inputs=conv3, filters=64, kernel_size=[3, 5],
                                      strides=1, padding='valid', activation=tf.nn.relu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv4:", conv4)
 
+        with tf.variable_scope('fully') as scope:
+            kernel_init = tf.truncated_normal_initializer(
+                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+            bias_init = tf.random_normal_initializer(
+                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+            flat = tf.contrib.layers.flatten(inputs=conv4)
+            fully = tf.contrib.layers.fully_connected(flat,
+                                                      48,
+                                                      activation_fn=tf.nn.relu,
+                                                      weights_initializer=kernel_init,
+                                                      biases_initializer=bias_init,)
+            print("fully:", fully)
+
         with tf.variable_scope('reshape') as scope:
             reshaped = tf.reshape(
-                conv4, [-1, 4, 12, 2], name=scope.name)
+                fully, [-1, 4, 12, 1], name=scope.name)
             print("reshape:", reshaped)
         return reshaped
 

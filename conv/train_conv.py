@@ -16,9 +16,9 @@ tf.app.flags.DEFINE_string("label_data", "label_no_over_data_mile_15_28.5_total_
                            "label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/src/traffic_flow_detection/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'predict_1_20/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'predict_1_20_v6/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'predict_1_20/log/',
+tf.app.flags.DEFINE_string('log_dir', 'predict_1_20_v6/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
@@ -77,12 +77,12 @@ def main(_):
         label_data = np.load(FLAGS.data_dir + FLAGS.label_data)
 
         # select flow from [density, flow, speed, weekday, time]
-        raw_data = raw_data[:, :, :, :5]
+        raw_data = raw_data[:, :, :, :3]
         label_data = label_data[:,
-                                :FLAGS.target_interval, :FLAGS.target_vd, 1:3]
+                                :FLAGS.target_interval, :FLAGS.target_vd, 1:2]
         # shuffle
-        shuffled_indices = np.random.shuffle(
-            np.arange(0, raw_data.shape[0], step=1, dtype=np.int32))
+        shuffled_indices = np.arange(0, raw_data.shape[0], step=1, dtype=np.int32)
+        np.random.shuffle(shuffled_indices)
 
         raw_data = raw_data[shuffled_indices]
         label_data = label_data[shuffled_indices]
@@ -98,9 +98,9 @@ def main(_):
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
+                              FLAGS.batch_size, FLAGS.total_interval, FLAGS.vd_amount, 3], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              FLAGS.batch_size, FLAGS.target_interval, FLAGS.target_vd, 2], name='label_data')
+                              FLAGS.batch_size, FLAGS.target_interval, FLAGS.target_vd, 1], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -126,10 +126,11 @@ def main(_):
         # Session
         with tf.Session() as sess:
             sess.run(init)
-
+            # shuffle training data
+            shuffled_indices = np.arange(0, train_raw_data.shape[0], step=1, dtype=np.int32)
             for epoch_steps in range(FLAGS.total_epoches):
                 # shuffle
-                shuffled_indices = np.random.shuffle(shuffled_indices)
+                np.random.shuffle(shuffled_indices)
                 train_raw_data = train_raw_data[shuffled_indices]
                 train_label_data = train_label_data[shuffled_indices]
 

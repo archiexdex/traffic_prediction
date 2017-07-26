@@ -28,7 +28,7 @@ tf.app.flags.DEFINE_string('data_dir', '/home/nctucgv/Documents/TrafficVis_Run/s
                            "data directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: ../checkpoints/model.ckpt-5")
-tf.app.flags.DEFINE_string('log_dir', 'predict_1_20/log/',
+tf.app.flags.DEFINE_string('log_dir', 'predict_1_20_v5/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
@@ -96,7 +96,7 @@ def write_data(writer, value, week, vd_idx, time):
         simple_value=value, tag="DAY:" + the_date(FLAGS.day) + "WEEK: " + str(week) + " VD:" + str(vd_idx))
     writer.add_summary(
         summary, the_time(time))
-    # writer.flush()
+    writer.flush()
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
@@ -111,13 +111,13 @@ def main(_):
         test_label_all = test_label_data[:, :FLAGS.target_interval, :FLAGS.target_vd, :]
         # for loss calculation prupose, predict both flow and speed
         test_label_data = test_label_data[:,
-                                          :FLAGS.target_interval, :FLAGS.target_vd, 1:3]
+                                          :FLAGS.target_interval, :FLAGS.target_vd, 1:2]
 
         # placeholder
         X_ph = tf.placeholder(dtype=tf.float32, shape=[
                               None, FLAGS.total_interval, FLAGS.vd_amount, 5], name='input_data')
         Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                              None, FLAGS.target_interval, FLAGS.target_vd, 2], name='label_data')
+                              None, FLAGS.target_interval, FLAGS.target_vd, 1], name='label_data')
 
         # config setting
         config = TestingConfig()
@@ -189,13 +189,13 @@ def main(_):
                                 FLAGS.log_dir + target_interval_range + '_density')
                             flow_summary_writer = tf.summary.FileWriter(
                                 FLAGS.log_dir + target_interval_range + '_flow')
-                            speed_summary_writer = tf.summary.FileWriter(
-                                FLAGS.log_dir + target_interval_range + '_speed')
+                            # speed_summary_writer = tf.summary.FileWriter(
+                            #     FLAGS.log_dir + target_interval_range + '_speed')
 
                             predict_flow_summary_writer = tf.summary.FileWriter(
                                 FLAGS.log_dir + target_interval_range + '_prediction_flow')
-                            predict_speed_summary_writer = tf.summary.FileWriter(
-                                FLAGS.log_dir + target_interval_range + '_prediction_speed')
+                            # predict_speed_summary_writer = tf.summary.FileWriter(
+                            #     FLAGS.log_dir + target_interval_range + '_prediction_speed')
                             losses_summary_writer = tf.summary.FileWriter(
                                 FLAGS.log_dir + target_interval_range + '_l2_losses')
 
@@ -204,20 +204,20 @@ def main(_):
                                     density_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
                                 write_data(
                                     flow_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
-                                write_data(
-                                    speed_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
+                                # write_data(
+                                #     speed_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
 
                                 write_data(
                                     predict_flow_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
-                                write_data(
-                                    predict_speed_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
+                                # write_data(
+                                #     predict_speed_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
                                 write_data(
                                     losses_summary_writer, 0, week_day, vd_idx, interval_id * FLAGS.interval)
                             density_summary_writer.close()
                             flow_summary_writer.close()
-                            speed_summary_writer.close()
+                            # speed_summary_writer.close()
                             predict_flow_summary_writer.close()
-                            predict_speed_summary_writer.close()
+                            # predict_speed_summary_writer.close()
                             losses_summary_writer.close()
                             time.sleep(0.25)
                     else:
@@ -237,13 +237,13 @@ def main(_):
                                 FLAGS.log_dir + target_interval_range + '_density')
                             flow_summary_writer = tf.summary.FileWriter(
                                 FLAGS.log_dir + target_interval_range + '_flow')
-                            speed_summary_writer = tf.summary.FileWriter(
-                                FLAGS.log_dir + target_interval_range + '_speed')
+                            # speed_summary_writer = tf.summary.FileWriter(
+                            #     FLAGS.log_dir + target_interval_range + '_speed')
 
                             predict_flow_summary_writer = tf.summary.FileWriter(
                                 FLAGS.log_dir + target_interval_range + '_prediction_flow')
-                            predict_speed_summary_writer = tf.summary.FileWriter(
-                                FLAGS.log_dir + target_interval_range + '_prediction_speed')
+                            # predict_speed_summary_writer = tf.summary.FileWriter(
+                            #     FLAGS.log_dir + target_interval_range + '_prediction_speed')
                             losses_summary_writer = tf.summary.FileWriter(
                                 FLAGS.log_dir + target_interval_range + '_l2_losses')
 
@@ -253,21 +253,21 @@ def main(_):
                                     density_summary_writer, test_label_all[offset][i][vd_idx][0], week_day, vd_idx, interval_id * FLAGS.interval)
                                 write_data(
                                     flow_summary_writer, test_label_all[offset][i][vd_idx][1], week_day, vd_idx, interval_id * FLAGS.interval)
-                                write_data(
-                                    speed_summary_writer, test_label_all[offset][i][vd_idx][2], week_day, vd_idx, interval_id * FLAGS.interval)
+                                # write_data(
+                                #     speed_summary_writer, test_label_all[offset][i][vd_idx][2], week_day, vd_idx, interval_id * FLAGS.interval)
 
                                 write_data(
                                     predict_flow_summary_writer, predicted_value[0][i][vd_idx][0], week_day, vd_idx, interval_id * FLAGS.interval)
-                                write_data(
-                                    predict_speed_summary_writer, predicted_value[0][i][vd_idx][1], week_day, vd_idx, interval_id * FLAGS.interval)
+                                # write_data(
+                                #     predict_speed_summary_writer, predicted_value[0][i][vd_idx][1], week_day, vd_idx, interval_id * FLAGS.interval)
                                 write_data(
                                     losses_summary_writer, losses_value, week_day, vd_idx, interval_id * FLAGS.interval)
 
                             density_summary_writer.close()
                             flow_summary_writer.close()
-                            speed_summary_writer.close()
+                            # speed_summary_writer.close()
                             predict_flow_summary_writer.close()
-                            predict_speed_summary_writer.close()
+                            # predict_speed_summary_writer.close()
                             losses_summary_writer.close()
                             time.sleep(0.25)
 

@@ -34,7 +34,7 @@ tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
-tf.app.flags.DEFINE_float('learning_rate', 0.0001,
+tf.app.flags.DEFINE_float('learning_rate', 0.1,
                           "learning rate of AdamOptimizer")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")

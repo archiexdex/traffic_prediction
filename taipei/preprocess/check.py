@@ -3,12 +3,13 @@ import os
 import json
 from datetime import datetime
 
-#vd_list = open("vd_list")
-vd_gps = np.load("VD_GPS.npy").item()
-data = np.load("input_data.npy").item()
+root_path = "../"
+
+vd_gps = np.load(root_path+"VD_GPS.npy").item()
+data = np.load(root_path+"input_data.npy").item()
 
 vd_list = []
-with open("vd_list") as vd:
+with open(root_path+"vd_list") as vd:
     for i in vd:
         key = i.strip()
         vd_list.append(key)
@@ -39,6 +40,7 @@ print(datetime.fromtimestamp(ed_time))
 #exit()
 miss_list = {}
 miss_len_list = {}
+mask_list = {}
 bucket = {}
 total_size = int(ed_time - st_time) // 300 + 1
 
@@ -46,6 +48,7 @@ for key in vd_list:
     flg = 0
     miss_list[key] = []
     miss_len_list[key] = []
+    mask_list[key] = []
     bucket = {}
 
     # To get redundant data
@@ -69,8 +72,11 @@ for key in vd_list:
     for i, item in enumerate(data[key]):
         if item == 0:
             w = get_week(now)
+            mask_list[key].append(1)
             miss_list[key].append(get_date_string(now) )
             data[key][i] = [0, 0, 0, w, now]
+        else:
+            mask_list[key].append(0)
         now += 300
 
     print(key, len(data[key]))
@@ -88,4 +94,7 @@ for key in vd_list:
 # with open('fix_raw_data.json', 'w') as fp:
 #     json.dump(data, fp)
 
-np.save("fix_input_data", data)
+with open(root_path+'mask_list.json', 'w') as fp:
+    json.dump(mask_list, fp)
+
+# np.save("fix_input_data", data)

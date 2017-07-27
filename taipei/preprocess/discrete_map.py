@@ -95,8 +95,8 @@ def main():
     # 4. discreted_map = zeros[row, col, intervals, features]
     discreted_map = np.zeros(
         shape=[target_map_rows, target_map_cols, num_intervals, num_features])
-    # visulize_map(target_map_rows, target_map_cols,
-    #              list(discreted_gps_dict.values()))
+    visulize_map(target_map_rows, target_map_cols,
+                 list(discreted_gps_dict.values()))
     # 5. discreted_map[discrete_longitude][discrete_latitude] = raw_data['vd_id']
     for _, v in enumerate(discreted_gps_dict):
         temp_row = discreted_gps_dict[v][0]

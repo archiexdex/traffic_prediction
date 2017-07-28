@@ -1,7 +1,9 @@
 import numpy as np
 import os
+import json
+import types
 
-file_path = "data_time_base/"
+file_path = "../raw_vd_data/"
 
 file_name_list  =  ["20150101000000_20150112000000",
                     "20150112000000_20150212000000",
@@ -37,23 +39,36 @@ file_name_list  =  ["20150101000000_20150112000000",
 
 data = {}
 
+vd_list = []
+with open("../reduce_dimension.json") as file:
+    tmp = json.load(file)
+    for i in tmp["x_base"]:
+        vd_list.append(i)
+
+
 for file_name in file_name_list:
-    tmp = np.load(file_path + file_name+".npy").item()
+    tmp = np.load(file_path + file_name + ".npy").item()
     
     print("reading ", file_name)
     if len(data) == 0:
-        with open("vd_list") as vd_list:
-            for _vd in vd_list:
-                vd = _vd.strip()
-                data[vd] = tmp[vd]
+        for vd in vd_list:
+            data[vd] = tmp[vd]
+        
     else:
-        with open("vd_list") as vd_list:
-            for _vd in vd_list:
-                vd = _vd.strip()
-                for it in tmp[vd]:
-                    data[vd].append(it)
+        for vd in vd_list:
+            for vd_grp in tmp[vd]:
+                
+                if vd_grp not in data[vd]:
+                    data[vd][vd_grp] = tmp[vd][vd_grp]
+                    # print(tmp[vd][vd_grp])
+                else:
+                    for item in tmp[vd][vd_grp]:
+                        data[vd][vd_grp].append(item)
+                
+    
 
 
-
-np.save("input_data", data)
+with open('raw_data.json', 'w') as fp:
+    json.dump(data, fp)
+# np.save("raw_data", data)
 

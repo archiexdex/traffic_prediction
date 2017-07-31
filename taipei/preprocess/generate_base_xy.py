@@ -13,7 +13,7 @@ import json
 import matplotlib.pyplot as plt
 
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/'
-TOLERANCE = 48
+TOLERANCE = 0
 
 def main():
     """

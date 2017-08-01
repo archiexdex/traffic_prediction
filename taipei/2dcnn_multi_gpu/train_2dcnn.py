@@ -36,6 +36,8 @@ tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_float('learning_rate', 0.1,
                           "learning rate of AdamOptimizer")
+tf.app.flags.DEFINE_integer('num_gpus', 1,
+                          "multi gpu")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
 
@@ -54,6 +56,7 @@ class ModelConfig(object):
         self.save_freq = FLAGS.save_freq
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
+        self.num_gpus = FLAGS.num_gpus
 
     def show(self):
         print("data_dir:", self.data_dir)
@@ -64,6 +67,7 @@ class ModelConfig(object):
         print("save_freq:", self.save_freq)
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
+        print("num_gpus:", self.num_gpus)
 
 
 def main(_):

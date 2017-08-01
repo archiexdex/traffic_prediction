@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/'
 TOLERANCE = 0
 
+
 def main():
     """
     main
@@ -22,28 +23,36 @@ def main():
 
     # load raw data
     raw_filename = DATA_PATH + 'fix_raw_data.json'
-    vd_id_filename = DATA_PATH + 'reduce_dimension.json'
+    vd_id_filename = DATA_PATH + 'vd_list_som_1.npy'
+    
     with codecs.open(raw_filename, 'r', 'utf-8') as f:
         raw_data = json.load(f)
     # print(np.array(list(raw_data.values())).shape)
-
+    # vd_id_filename = DATA_PATH + 'reduce_dimension.json'
+    # with open(vd_id_filename) as fp:
+    #     vd_list = json.load(fp)
+    # vd_list = vd_list['y_base']
+    
     # read vd id list
-    with codecs.open(vd_id_filename, 'r', 'utf-8') as f:
-        vd_list_data = json.load(f)
-    x_base_list = vd_list_data['x_base']
-    y_base_list = vd_list_data['y_base']
-    # print(np.array(x_base_list).shape)
-    # print(np.array(y_base_list).shape)
-
+    vd_list = np.load(vd_id_filename)
     # gather data into one tensor according to vd id list
     all_data = []
-    for idx in x_base_list:
-        all_data.append(raw_data[idx])
-    for idx in y_base_list:
-        all_data.append(raw_data[idx])
-    all_data = np.array(all_data)
-    # print(all_data.shape)
+    for idx in vd_list:
+        for grp in raw_data[idx]:
+            all_data.append(raw_data[idx][grp])
+            # tmp = np.array(raw_data[idx][grp])
+            # for i in raw_data[idx][grp]:
+            #     print (i)
+            #     if type(i) != list:
+            #         print(i)
 
+            #         # print(tmp.shape)
+            #         # print(tmp.dtype)
+            #         input("!")
+
+    all_data = np.array(all_data)
+    print(all_data.shape)
+    # exit()
     # generate repeared data from shape=[2*vds, intervals, features] to
     # shape=[num_data, 2*vds, 12, features]
     repeated_data = []
@@ -72,7 +81,7 @@ def main():
     # print(organized_data.shape)
 
     input_organized_data = organized_data[:, :, :12, :]
-    label_organized_data = organized_data[:, :35, 12, 1]
+    label_organized_data = organized_data[:, :, 12, 1]
     print(input_organized_data.shape)
     print(label_organized_data.shape)
 

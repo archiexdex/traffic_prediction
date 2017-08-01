@@ -25,9 +25,9 @@ class TFPModel(object):
 
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 70, 12, 5], name='input_data')
+            None, 62, 12, 5], name='input_data')
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 35], name='label_data')
+            None, 62], name='label_data')
 
         optimizer = tf.train.AdamOptimizer(
             learning_rate=self.learning_rate)
@@ -151,7 +151,7 @@ class TFPModel(object):
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             fully2 = tf.contrib.layers.fully_connected(fully1,
-                                                       35,
+                                                       62,
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
                                                        biases_initializer=bias_init,

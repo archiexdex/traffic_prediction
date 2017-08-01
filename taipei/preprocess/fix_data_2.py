@@ -65,6 +65,7 @@ for key in vd_list:
             # input("@")
     
     # Initialize all group in data[key]
+    now = st_time
     for grp in data[key]:
         data[key][grp] = [0] * total_size
 
@@ -78,18 +79,20 @@ for key in vd_list:
             data[key][grp][i] = bucket[grp][i][0]
             
 
-    
+    # To append 0 to missing data
     for i, grp in enumerate(data[key]):
         mask_list[key][grp] = []
         miss_list[key][grp] = []
         miss_len_list[key][grp] = 0
         now = st_time
-        for item in data[key][grp]:
+        for idx, item in enumerate(data[key][grp]):
+            
+            
             if item == 0:
                 w = get_week(now)
                 mask_list[key][grp].append(1)
                 miss_list[key][grp].append(get_date_string(now) )
-                data[key][grp][i] = [0, 0, 0, w, now]
+                data[key][grp][idx] = [0, 0, 0, w, now]
             else:
                 mask_list[key][grp].append(0)
             now += 300

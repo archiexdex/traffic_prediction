@@ -38,29 +38,30 @@ file_name_list  =  ["20150101000000_20150112000000",
                     "20170113000000_20170213000000",
                     "20170213000000_20170313000000",
                     ]
-for file_name in file_name_list:
-    file = open(root_path + file_name + ".csv")
-    csv_cursor = csv.reader(file)
 
-
-    def the_date(the_time):
+def the_date(the_time):
         # return (datetime.date(2015, 1, 1) + datetime.timedelta(microseconds=day-1)).strftime("%Y-%m-%d %H:%M:%S")
         return datetime.datetime.fromtimestamp(the_time)
 
-    def check_time(tt):
-        # tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst
-        return tt[4] % 5 == 0 and tt[5] == 0
+def check_time(tt):
+    # tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst
+    return tt[4] % 5 == 0 and tt[5] == 0
+
+for file_name in file_name_list:
+    file = open(root_path + file_name + ".csv")
+    csv_cursor = csv.reader(file)
+    print(file_name)
 
     # {key, [[density, flow, speed, week, time]]}
     data = {}
 
-    lane_order = 0
-    density = 0
-    flow = 0
-    speed = 0
+    group_id = 0
+    density = {}
+    flow = {}
+    speed = {}
+    count = {}
     timestamp = 0
     week = 4
-    count = 0
     flg = 0
 
     key_old = key_now = ""
@@ -68,48 +69,71 @@ for file_name in file_name_list:
     #      0           1            2            3           4           5            6              7             8           9            10          11       12       13
     # ['DEVICEID', 'LANEORDER', 'BIGVOLUME', 'BIGSPEED', 'CARVOLUME', 'CARSPEED', 'MOTORVOLUME', 'MOTORSPEED', 'AVGSPEED', 'LANEOCCUPY', 'DATETIME2', 'RATE', 'AVGINT', 'LGID']
     for i, item in enumerate(csv_cursor):
-
+        
+        # First row
         if i == 0:
-            print(item)
-            input("@@")
+            # print(item)
+            # input("@@")
             continue
         
+        # Check Time
+        tt = datetime.datetime.strptime(item[10], "%Y-%m-%d %H:%M:%S").timetuple()
+        if check_time(tt) == False:
+            continue
+
         key_now = item[0]
         if key_old == key_now:
-            density += float(item[9])
-            flow    += float(item[2]) + float(item[4])
-            speed   += float(item[8])
-            count   += 1
+            group_id = int(item[13])
+            if group_id not in density:
+                density[group_id] = float(item[9])
+                flow[group_id]    = float(item[2]) + float(item[4])
+                speed[group_id]   = float(item[8])
+                count[group_id]   = 1
+            else:
+                density[group_id] += float(item[9])
+                flow[group_id]    += float(item[2]) + float(item[4])
+                speed[group_id]   += float(item[8])
+                count[group_id]   += 1
+            # print(">>  ", group_id, density[group_id], flow[group_id], speed[group_id], count[group_id])
             
         else:
             # Calculate last VD data
-            if count > 0 :
+            if len(count) > 0:
                 # print(density, flow, speed, week, timestamp)
-                density /= count
-                speed /= count 
-                if key_old in data:
-                    data[key_old].append([density, flow, speed, week, timestamp])
-                else:
-                    data[key_old] = [[density, flow, speed, week, timestamp]]
-                density = flow = speed = timestamp = week = count = 0
+                if key_old not in data:
+                    data[key_old] = {}
+                
+                for i in count:
+                    # print(density[i], speed[i], count[i])
+                    density[i] /= count[i]
+                    speed[i] /= count[i]
+                    if i not in data[key_old]:
+                        data[key_old][i] = [[density[i], flow[i], speed[i], week, timestamp]]
+                    else :
+                        data[key_old][i].append([density[i], flow[i], speed[i], week, timestamp])
+
+                density = {}
+                flow = {}
+                speed = {}
+                count = {}
+                timestamp = 0
+                week = 0
 
             # Initial for next VD data
             key_old     = key_now
-            tt = datetime.datetime.strptime(item[10], "%Y-%m-%d %H:%M:%S").timetuple()
-            if check_time(tt) == False:
-                flg += 1
-                continue
-            flg = 0
-            density = float(item[9])
-            flow    = float(item[2]) + float(item[4])
-            speed   = float(item[8])
+            
+            group_id          = int(item[13])
+            density[group_id] = float(item[9])
+            flow[group_id]    = float(item[2]) + float(item[4])
+            speed[group_id]   = float(item[8])
+            count[group_id]   = 1
 
             timestamp  = time.mktime( tt ) 
             week = (tt[6] + 1) % 7
-            count   = 1
+            # print(">>  :", group_id,  density[group_id], flow[group_id], speed[group_id], count[group_id])
         
-        print(item)
-        input("!!")
+        # print(i)
+        
+        
     np.save(file_name, data)
-
     print(len(data))

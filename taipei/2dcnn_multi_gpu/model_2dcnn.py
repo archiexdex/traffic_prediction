@@ -25,7 +25,7 @@ class TFPModel(object):
 
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 62, 12, 5], name='input_data')
+            None, 62, 12, 4], name='input_data')
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[
             None, 62], name='label_data')
 

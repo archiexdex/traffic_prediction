@@ -21,23 +21,23 @@ tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '../preprocess/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v2/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v3/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v2/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v3/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 300,
+tf.app.flags.DEFINE_integer('total_epoches', 1000,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
-tf.app.flags.DEFINE_float('learning_rate', 0.1,
+tf.app.flags.DEFINE_float('learning_rate', 0.00001,
                           "learning rate of AdamOptimizer")
 tf.app.flags.DEFINE_integer('num_gpus', 1,
-                          "multi gpu")
+                            "multi gpu")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
 
@@ -76,8 +76,8 @@ def main(_):
         config = ModelConfig()
         config.show()
         # load data
-        train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
-        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)
+        train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, 0:4]
+        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, 0:4]
         train_label = np.load(FLAGS.data_dir + FLAGS.train_label)
         test_label = np.load(FLAGS.data_dir + FLAGS.test_label)
         # number of batches
@@ -145,6 +145,21 @@ def main(_):
                        train_loss_sum / train_num_batch,
                        test_loss_sum / test_num_batch,
                        (end_time - start_time) / train_num_batch))
+
+                # train mean ephoch loss
+                train_scalar_summary = tf.Summary()
+                train_scalar_summary.value.add(
+                    simple_value=train_loss_sum / train_num_batch, tag="mean loss")
+                train_summary_writer.add_summary(
+                    train_scalar_summary, global_step=global_step)
+                train_summary_writer.flush()
+                # valid mean ephoch loss
+                valid_scalar_summary = tf.Summary()
+                valid_scalar_summary.value.add(
+                    simple_value=test_loss_sum / test_num_batch, tag="mean loss")
+                valid_summary_writer.add_summary(
+                    valid_scalar_summary, global_step=global_step)
+                valid_summary_writer.flush()
 
                 # save checkpoints
                 if (global_ephoch % FLAGS.save_freq) == 0:

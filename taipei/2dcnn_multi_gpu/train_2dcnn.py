@@ -19,7 +19,7 @@ tf.app.flags.DEFINE_string("train_label", "train_label.npy",
                            "training label data name")
 tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
-tf.app.flags.DEFINE_string('data_dir', '../preprocess/',
+tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/preprocess/',
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'v3/checkpoints/',
                            "training checkpoints directory")
@@ -36,7 +36,7 @@ tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           "learning rate of AdamOptimizer")
-tf.app.flags.DEFINE_integer('num_gpus', 1,
+tf.app.flags.DEFINE_integer('num_gpus', 2,
                             "multi gpu")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
@@ -112,6 +112,7 @@ def main(_):
                 shuffled_indexes = np.random.permutation(train_data.shape[0])
                 train_data = train_data[shuffled_indexes]
                 train_label = train_label[shuffled_indexes]
+                each_vd_losses_sum = []
                 train_loss_sum = 0.0
                 for b in range(train_num_batch):
                     batch_idx = b * FLAGS.batch_size
@@ -121,10 +122,14 @@ def main(_):
                     train_label_batch = train_label[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
                     # train
-                    losses, global_step = model.step(
+                    each_vd_losses, losses, global_step = model.step(
                         sess, train_data_batch, train_label_batch)
+                    each_vd_losses_sum.append(each_vd_losses)
                     train_loss_sum += losses
+                each_vd_losses_sum = np.array(each_vd_losses_sum)
+                each_vd_losses_mean = np.mean(each_vd_losses_sum, axis=0)
                 global_ephoch = int(global_step // train_num_batch)
+
                 # validation
                 test_loss_sum = 0.0
                 for test_b in range(test_num_batch):
@@ -145,6 +150,7 @@ def main(_):
                        train_loss_sum / train_num_batch,
                        test_loss_sum / test_num_batch,
                        (end_time - start_time) / train_num_batch))
+                print("each vd's mean loss", each_vd_losses_mean)
 
                 # train mean ephoch loss
                 train_scalar_summary = tf.Summary()

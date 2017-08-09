@@ -25,13 +25,14 @@ class TFPModel(object):
 
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 62, 12, 5], name='input_data')
+            None, 60, 12, 4], name='input_data')
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 62], name='label_data')
+            None, 16], name='label_data')
 
         optimizer = tf.train.AdamOptimizer(
             learning_rate=self.learning_rate)
 
+        vd_losses_sum = []
         tower_grads = []
         num_batch_per_gpu = self.batch_size // self.num_gpus
         with tf.variable_scope(tf.get_variable_scope()):  # get current variable scope
@@ -41,13 +42,18 @@ class TFPModel(object):
                     with tf.name_scope('tower_%d' % i) as scope:
                         logits = self.inference(
                             self.X_ph[batch_idx:batch_idx + num_batch_per_gpu])
-                        self.losses = self.loss_function(
+                        vd_losses, self.losses = self.loss_function(
                             logits, self.Y_ph[batch_idx:batch_idx + num_batch_per_gpu])
+                        vd_losses_sum.append(vd_losses)
                         # tf.summary.scalar('loss', losses)
                         # Reuse variables for the next tower.
                         tf.get_variable_scope().reuse_variables()
                         grads = optimizer.compute_gradients(self.losses)
                         tower_grads.append(grads)
+        # get each vd mean loss of multi gpu
+        self.each_vd_losses = tf.reduce_mean(vd_losses_sum, axis=0)
+        print(self.each_vd_losses)
+        
         # We must calculate the mean of each gradient. Note that this is the
         # synchronization point across all towers.
         grads = self.average_gradients(tower_grads)
@@ -63,6 +69,9 @@ class TFPModel(object):
     def inference(self, inputs):
         """
         Param:
+            inputs: float32, placeholder, shape=[None, num_vds, num_interval, num_features]
+        Return:
+            fully2: float, shape=[None, num_target_vds]
         """
         print("inputs:", inputs)
         with tf.variable_scope('conv1') as scope:
@@ -151,7 +160,7 @@ class TFPModel(object):
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             fully2 = tf.contrib.layers.fully_connected(fully1,
-                                                       62,
+                                                       16,
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
                                                        biases_initializer=bias_init,
@@ -163,24 +172,34 @@ class TFPModel(object):
     def loss_function(self, logits, labels):
         """
         Param:
-            logits:
-            labels: placeholder, shape=[None, 34]
+            logits: float, shape=[None, num_target_vds], inference's output
+            labels: float, placeholder, shape=[None, num_target_vds]
+        Return:
+            vd_losses: float, shape=[num_vds], every vd's loss in one step
+            l2_mean_loss: float, shape=[], mean loss for backprop
         """
         with tf.name_scope('l2_loss'):
-            losses = tf.squared_difference(logits, labels)
-            l2_loss = tf.reduce_mean(losses)
-        print(l2_loss)
-        return l2_loss
+            vd_losses = tf.squared_difference(logits, labels)
+            vd_mean_losses = tf.reduce_mean(vd_losses, axis=0)
+            l2_mean_loss = tf.reduce_mean(vd_losses)
+        print(l2_mean_loss)
+        return vd_mean_losses, l2_mean_loss
 
     def step(self, sess, inputs, labels):
+        """
+        Return
+            each_vd_losses: float, shape=[num_vds], every vd's loss in one step
+            losses: float, shape=[], mean loss for backprop
+            global_steps: int, shape=[], training steps
+        """
         feed_dict = {self.X_ph: inputs,
                      self.Y_ph: labels}
-        losses, global_steps, _ = sess.run(
-            [self.losses, self.global_step, self.train_op], feed_dict=feed_dict)
+        each_vd_losses, losses, global_steps, _ = sess.run(
+            [self.each_vd_losses, self.losses, self.global_step, self.train_op], feed_dict=feed_dict)
         # summary testing loss
         # self.train_summary_writer.add_summary(
         #     summary, global_step=global_steps)
-        return losses, global_steps
+        return each_vd_losses, losses, global_steps
 
     def compute_loss(self, sess, inputs, labels):
         feed_dict = {self.X_ph: inputs,
@@ -233,9 +252,9 @@ class TestingConfig(object):
     """
 
     def __init__(self):
-        self.data_dir = "FLAGS.data_dir"
-        self.checkpoints_dir = "FLAGS.checkpoints_dir"
-        self.log_dir = "FLAGS.log_dir"
+        self.data_dir = "FLAGS.data_dir/"
+        self.checkpoints_dir = "FLAGS.checkpoints_dir/"
+        self.log_dir = "FLAGS.log_dir/"
         self.batch_size = 256
         self.total_epoches = 10
         self.learning_rate = 0.001
@@ -246,8 +265,8 @@ def test():
     with tf.Graph().as_default() as g:
         model = TFPModel(TestingConfig(), graph=g)
         # train
-        X = np.zeros(shape=[256, 70, 12, 5])
-        Y = np.zeros(shape=[256, 35])
+        X = np.zeros(shape=[256, 62, 12, 4])
+        Y = np.zeros(shape=[256, 62])
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             model.step(sess, X, Y)

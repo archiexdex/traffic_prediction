@@ -1,4 +1,3 @@
-
 import os
 import csv
 import sys
@@ -6,7 +5,7 @@ import time
 import datetime
 import numpy as np
 
-root_path = "/home/xdex/Documents/VD/201501-201703/"
+root_path = "/home/xdex/Documents/old_Taipei_data/VD/201501-201703/"
 
 file_name_list  =  ["20150101000000_20150112000000",
                     "20150112000000_20150212000000",
@@ -47,6 +46,9 @@ def check_time(tt):
     # tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst
     return tt[4] % 5 == 0 and tt[5] == 0
 
+vd_gps = np.load("../training_data/VD_GPS.npy").item()
+save_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/raw_data/"
+
 for file_name in file_name_list:
     file = open(root_path + file_name + ".csv")
     csv_cursor = csv.reader(file)
@@ -69,7 +71,8 @@ for file_name in file_name_list:
     #      0           1            2            3           4           5            6              7             8           9            10          11       12       13
     # ['DEVICEID', 'LANEORDER', 'BIGVOLUME', 'BIGSPEED', 'CARVOLUME', 'CARSPEED', 'MOTORVOLUME', 'MOTORSPEED', 'AVGSPEED', 'LANEOCCUPY', 'DATETIME2', 'RATE', 'AVGINT', 'LGID']
     for i, item in enumerate(csv_cursor):
-        
+        # print(item)
+        # input("@")
         # First row
         if i == 0:
             # print(item)
@@ -103,14 +106,17 @@ for file_name in file_name_list:
                 if key_old not in data:
                     data[key_old] = {}
                 
+                # Get correspondant GPS
+                gps = [-1, -1] if key_old not in vd_gps else vd_gps[key_old]
+
                 for i in count:
                     # print(density[i], speed[i], count[i])
                     density[i] /= count[i]
                     speed[i] /= count[i]
                     if i not in data[key_old]:
-                        data[key_old][i] = [[density[i], flow[i], speed[i], week, timestamp]]
+                        data[key_old][i] = [[density[i], flow[i], speed[i], week, timestamp, gps[0], gps[1] ] ]
                     else :
-                        data[key_old][i].append([density[i], flow[i], speed[i], week, timestamp])
+                        data[key_old][i].append([density[i], flow[i], speed[i], week, timestamp, gps[0], gps[1] ])
 
                 density = {}
                 flow = {}
@@ -135,5 +141,5 @@ for file_name in file_name_list:
         # print(i)
         
         
-    np.save(file_name, data)
+    np.save(save_path + file_name, data)
     print(len(data))

@@ -5,7 +5,7 @@ import time
 import datetime
 import numpy as np
 
-root_path = "/home/xdex/Documents/VD/"
+root_path = "/home/xdex/Documents/old_Taipei_data/VD/"
 
 file_name = "VD_GPS"
 

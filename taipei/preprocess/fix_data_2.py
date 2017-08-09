@@ -87,7 +87,7 @@ for key in vd_list:
         now = st_time
         for idx, item in enumerate(data[key][grp]):
             
-            
+            # If the data is missing, append 1 to mask_list
             if item == 0:
                 w = get_week(now)
                 mask_list[key][grp].append(1)

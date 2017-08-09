@@ -20,25 +20,29 @@ import plotly.graph_objs as go
 
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
 DATA_TRAIN_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/preprocess/'
-FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/AREA_2_WEEK/'
+FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/2YEAR_bad_in_train/'
 
 DRAW_ONLINE_FLAG = False
-VD_NAMES = ['VMTG520', 'VMQGX40', 'VM7FI60', 'VLMG600', 'VLYGU40', 'VN5HV60', 'VN5HV61', 'VLRHT00']
+# VD_NAMES = ['VMTG520', 'VMQGX40', 'VM7FI60', 'VLMG600', 'VLYGU40', 'VN5HV60', 'VN5HV61', 'VLRHT00']
 # VD_NAMES = ['VP8GI60', 'VNNFY00', 'VP8GX40', 'VP8GX00', 'VP8GI20']
-START_DAYS = [97]
+# VD_NAMES = ['VP8GX40']
+VD_NAMES = ['VMTG520', 'VMQGX40', 'VLRHT00']
+START_DAYS = [1]
+DURATION = 600
 
 
-def plot_one_week(raw_data, vd_name, group_id, start_day):
+def plot_duration(raw_data, vd_name, group_id, start_day, duration):
     """
     Params:
         raw_data:
         vd_name:
         group_id:
         start_day:
+        duration:
     Return:
     """
     target_vd_data = np.array(raw_data[vd_name][group_id])[
-        start_day * 12 * 24:(start_day + 7) * 12 * 24, 0:5]
+        start_day * 12 * 24:(start_day + duration) * 12 * 24, 0:5]
     # print(target_vd_data.shape)
 
     # Add data
@@ -108,7 +112,7 @@ def main():
     for start_day in START_DAYS:
         for vd_name in VD_NAMES:
             for group_id in raw_data[vd_name]:
-                plot_one_week(raw_data, vd_name, group_id, start_day)
+                plot_duration(raw_data, vd_name, group_id, start_day, DURATION)
                 print("Finished:: VD_NAME: %s, GROUP_ID: %s, START_DAY: %d" %
                     (vd_name, group_id, start_day))
 

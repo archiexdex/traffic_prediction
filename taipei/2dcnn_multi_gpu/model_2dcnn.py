@@ -204,8 +204,8 @@ class TFPModel(object):
     def compute_loss(self, sess, inputs, labels):
         feed_dict = {self.X_ph: inputs,
                      self.Y_ph: labels}
-        losses = sess.run(self.losses, feed_dict=feed_dict)
-        return losses
+        each_vd_losses, losses = sess.run([self.each_vd_losses, self.losses], feed_dict=feed_dict)
+        return each_vd_losses, losses
 
     def average_gradients(self, tower_grads):
         """

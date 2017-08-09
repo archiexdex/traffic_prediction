@@ -131,6 +131,7 @@ def main(_):
                 global_ephoch = int(global_step // train_num_batch)
 
                 # validation
+                test_each_vd_losses_sum = []
                 test_loss_sum = 0.0
                 for test_b in range(test_num_batch):
                     batch_idx = test_b * FLAGS.batch_size
@@ -139,9 +140,12 @@ def main(_):
                                                 FLAGS.batch_size]
                     test_label_batch = test_label[batch_idx:batch_idx +
                                                   FLAGS.batch_size]
-                    test_losses = model.compute_loss(
+                    test_each_vd_losses, test_losses = model.compute_loss(
                         sess, test_data_batch, test_label_batch)
+                    test_each_vd_losses_sum.append(test_each_vd_losses)
                     test_loss_sum += test_losses
+                test_each_vd_losses_sum = np.array(test_each_vd_losses_sum)
+                test_each_vd_losses_mean = np.mean(test_each_vd_losses_sum, axis=0)
                 end_time = time.time()
                 # logging per ephoch
                 print("%d epoches, %d steps, mean train loss: %f, test mean loss: %f, time cost: %f(sec/batch)" %
@@ -150,7 +154,10 @@ def main(_):
                        train_loss_sum / train_num_batch,
                        test_loss_sum / test_num_batch,
                        (end_time - start_time) / train_num_batch))
-                print("each vd's mean loss", each_vd_losses_mean)
+                print("each train vd's mean loss:")
+                print(each_vd_losses_mean)
+                print("each test vd's mean loss:")
+                print(test_each_vd_losses_mean)
 
                 # train mean ephoch loss
                 train_scalar_summary = tf.Summary()

@@ -3,7 +3,7 @@ import os
 import json
 import types
 
-file_path = "../raw_vd_data/"
+file_path = "../training_data/raw_vd_data/"
 
 file_name_list  =  ["20150101000000_20150112000000",
                     "20150112000000_20150212000000",
@@ -40,14 +40,16 @@ file_name_list  =  ["20150101000000_20150112000000",
 data = {}
 
 vd_list = []
-with open("../reduce_dimension.json") as file:
+with open("../training_data/selected_vd.json") as file:
     tmp = json.load(file)
-    for i in tmp["x_base"]:
-        vd_list.append(i)
+    vd_list = tmp["train"]
+    # for i in tmp["train"]:
+    #     vd_list.append(i)
 
-
+ma = -10123456789
 for file_name in file_name_list:
     tmp = np.load(file_path + file_name + ".npy").item()
+    ma = max(len(tmp), ma)
     
     print("reading ", file_name)
     if len(data) == 0:
@@ -66,7 +68,7 @@ for file_name in file_name_list:
                         data[vd][vd_grp].append(item)
                 
     
-
+print("max:", ma)
 
 with open('raw_data.json', 'w') as fp:
     json.dump(data, fp)

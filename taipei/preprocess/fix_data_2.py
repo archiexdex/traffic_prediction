@@ -5,11 +5,7 @@ import time
 from datetime import datetime
 
 
-root_path = "../"
-
-print("Reading VD_GPS...")
-vd_gps = np.load(root_path+"VD_GPS.npy").item()
-# data = np.load(root_path+"input_data.npy").item()
+root_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/"
 
 print("Reading raw data...")
 data = {}
@@ -18,18 +14,17 @@ with open(root_path+"raw_data.json") as file:
 
 print("Reading vd_list...")
 vd_list = []
-with open(root_path+"reduce_dimension.json") as file:
+with open(root_path + "selected_vd.json") as file:
     tmp = json.load(file)
-    for i in tmp["x_base"]:
-        vd_list.append(i)
+    vd_list = tmp["train"]
 
 # Find max time range
 st_time = time.mktime( datetime.strptime("2015-01-01 00:05:00", "%Y-%m-%d %H:%M:%S").timetuple() )
 ed_time = time.mktime( datetime.strptime("2017-03-13 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
 
-
-print(st_time, ed_time)
+# 0 is Sunday
 def get_week(timestamp):
+    # Because the timetuple return 0 is Monday, so I add one to change 1 to Monday
     return (datetime.fromtimestamp(timestamp).timetuple()[6] + 1 ) % 7
 
 def get_date_string(timestamp):
@@ -45,14 +40,17 @@ mask_list = {}
 bucket = {}
 total_size = int(ed_time - st_time) // 300 + 1
 
+# Enumerate all VD 
 for key in vd_list:
+    
+    # Initialize 
     flg = 0
     miss_list[key] = {}
     miss_len_list[key] = {}
     mask_list[key] = {}
     bucket = {}
 
-    # To get redundant data
+    # To get redundant data and put them into correspondant bucket
     for i, grp in enumerate(data[key]):
         
         bucket[grp] = {}
@@ -78,7 +76,6 @@ for key in vd_list:
 
             data[key][grp][i] = bucket[grp][i][0]
             
-
     # To append 0 to missing data
     for i, grp in enumerate(data[key]):
         mask_list[key][grp] = []
@@ -92,7 +89,8 @@ for key in vd_list:
                 w = get_week(now)
                 mask_list[key][grp].append(1)
                 miss_list[key][grp].append(get_date_string(now) )
-                data[key][grp][idx] = [0, 0, 0, w, now]
+                # density, flow, speed, week, timestamp, longitude, latitude
+                data[key][grp][idx] = [0, 0, 0, w, now, 0, 0]
             else:
                 mask_list[key][grp].append(0)
             now += 300

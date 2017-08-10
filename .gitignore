@@ -1,6 +1,7 @@
 # data
 *.png
 mile_base/
+training_data/
 *.npy
 *.json
 # log

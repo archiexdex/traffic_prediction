@@ -3,7 +3,7 @@ import os
 import json
 import types
 
-file_path = "../training_data/raw_vd_data/"
+file_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/"
 
 file_name_list  =  ["20150101000000_20150112000000",
                     "20150112000000_20150212000000",
@@ -40,7 +40,7 @@ file_name_list  =  ["20150101000000_20150112000000",
 data = {}
 
 vd_list = []
-with open("../training_data/selected_vd.json") as file:
+with open(file_path + "selected_vd.json") as file:
     tmp = json.load(file)
     vd_list = tmp["train"]
     # for i in tmp["train"]:
@@ -48,7 +48,7 @@ with open("../training_data/selected_vd.json") as file:
 
 ma = -10123456789
 for file_name in file_name_list:
-    tmp = np.load(file_path + file_name + ".npy").item()
+    tmp = np.load(file_path + "raw_data/" +file_name + ".npy").item()
     ma = max(len(tmp), ma)
     
     print("reading ", file_name)

@@ -21,6 +21,7 @@ DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
 FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/test/'
 VD_NAME = 'VMQGX40' # bad vd
 # VD_NAME = 'VNNFY00' # good vd
+#TODO automatically generate vis result accordint to list of vds
 GROUP_ID = '1'
 
 

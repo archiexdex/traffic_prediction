@@ -20,13 +20,13 @@ import plotly.graph_objs as go
 
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
 DATA_TRAIN_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/preprocess/'
-FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/2YEAR_bad_in_train/'
+FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/2YEAR_VP8GX40/'
 
 DRAW_ONLINE_FLAG = False
 # VD_NAMES = ['VMTG520', 'VMQGX40', 'VM7FI60', 'VLMG600', 'VLYGU40', 'VN5HV60', 'VN5HV61', 'VLRHT00']
 # VD_NAMES = ['VP8GI60', 'VNNFY00', 'VP8GX40', 'VP8GX00', 'VP8GI20']
-# VD_NAMES = ['VP8GX40']
-VD_NAMES = ['VMTG520', 'VMQGX40', 'VLRHT00']
+VD_NAMES = ['VMQGX40']
+# VD_NAMES = ['VMTG520', 'VMQGX40', 'VLRHT00']
 START_DAYS = [1]
 DURATION = 600
 

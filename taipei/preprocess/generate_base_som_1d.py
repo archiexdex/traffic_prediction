@@ -57,7 +57,7 @@ def main():
     label_data = []
     label_mask = []
     for i in vd_list["label"]:
-        if i == "1":
+        if i == "0":
             for key in vd_list["label"][i]:
                 for grp in raw_data[key]:
                     label_data.append(raw_data[key][grp])

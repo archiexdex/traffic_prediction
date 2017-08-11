@@ -21,7 +21,7 @@ for key in raw_data:
         for item in raw_data[key][grp]:
             hour = datetime.fromtimestamp(item[4]).timetuple()[3]
             minute = datetime.fromtimestamp(item[4]).timetuple()[4]
-            item[4] = hour*60+minute
+            item[4] = (hour*60+minute) // 5
 
 print("Saving fix_raw_data")
 with open(root_path + "fix_raw_data_time1.json", "w") as fp:

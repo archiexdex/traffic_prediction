@@ -7,6 +7,7 @@ import time
 import numpy as np
 import tensorflow as tf
 import model_2dcnn
+import parameter_saver
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -75,9 +76,12 @@ def main(_):
         # config setting
         config = ModelConfig()
         config.show()
+        # training loss saver
+        loss_saver = parameter_saver.Training_loss_saver()
+        loss_saver.add_parameter("description", "data(timestamp) with longitude and latitude")
         # load data
-        train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, 0:4]
-        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, 0:4]
+        train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :]
+        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]
         train_label = np.load(FLAGS.data_dir + FLAGS.train_label)
         test_label = np.load(FLAGS.data_dir + FLAGS.test_label)
         # number of batches
@@ -85,6 +89,8 @@ def main(_):
         test_num_batch = test_data.shape[0] // FLAGS.batch_size
         print(train_num_batch)
         print(test_num_batch)
+        loss_saver.add_parameter("input_shape", train_data.shape)
+        loss_saver.add_parameter("test_shape", test_data.shape)
         # model
         model = model_2dcnn.TFPModel(config, graph=graph)
         # Add an op to initialize the variables.
@@ -158,7 +164,7 @@ def main(_):
                 print(each_vd_losses_mean)
                 print("each test vd's mean loss:")
                 print(test_each_vd_losses_mean)
-
+                
                 # train mean ephoch loss
                 train_scalar_summary = tf.Summary()
                 train_scalar_summary.value.add(
@@ -175,11 +181,16 @@ def main(_):
                 valid_summary_writer.flush()
 
                 # save checkpoints
-                if (global_ephoch % FLAGS.save_freq) == 0:
+                if (global_ephoch % FLAGS.save_freq) == 0 or global_ephoch < 10:
                     save_path = saver.save(
                         sess, FLAGS.checkpoints_dir + "model.ckpt",
                         global_step=global_step)
                     print("Model saved in file: %s" % save_path)
+                    # save the loss
+                    loss_saver.add_loss( global_ephoch, 
+                                         train_loss_sum / train_num_batch, 
+                                         test_loss_sum / test_num_batch)
+                    loss_saver.save()
 
 
 if __name__ == "__main__":

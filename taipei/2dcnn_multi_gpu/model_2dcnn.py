@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import parameter_saver
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import rnn
@@ -23,11 +24,20 @@ class TFPModel(object):
         self.learning_rate = config.learning_rate
         self.num_gpus = config.num_gpus
 
+        self.parameter_saver = parameter_saver.Parameter_saver("2 dimension CNN")
+        self.parameter_saver.add_parameter("batch_size", self.batch_size)
+        self.parameter_saver.add_parameter("learning_rate", self.learning_rate)
+        self.parameter_saver.add_parameter("optimizer", "adam")
+        self.parameter_saver.add_parameter("loss_function", "l2_loss")
+        self.parameter_saver.add_parameter("log_dir", self.log_dir)
+        self.parameter_saver.add_parameter("num_gpu", self.num_gpus) 
+        self.parameter_saver.add_parameter("description", "data(timestamp) with longitude and latitude")
+
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 60, 12, 4], name='input_data')
+            None, 60, 12, 7], name='input_data')
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 16], name='label_data')
+            None, 7], name='label_data')
 
         optimizer = tf.train.AdamOptimizer(
             learning_rate=self.learning_rate)
@@ -84,6 +94,7 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv1:", conv1)
+            self.parameter_saver.add_layer("conv1", {"filter": 64, "kernel_size": [3,3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv1_2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -95,6 +106,7 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             print("conv1_2:", conv1_2)
+            self.parameter_saver.add_layer("conv1_2", {"filter": 64, "kernel_size": [3,3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -106,6 +118,7 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv2:", conv2)
+            self.parameter_saver.add_layer("conv2", {"filter": 128, "kernel_size": [3,3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv3') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -117,6 +130,7 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv3:", conv3)
+            self.parameter_saver.add_layer("conv3", {"filter": 128, "kernel_size": [3,3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv4') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -128,6 +142,7 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv4:", conv4)
+            self.parameter_saver.add_layer("conv4", {"filter": 256, "kernel_size": [3,3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv4_2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -139,6 +154,7 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             print("conv4_2:", conv4_2)
+            self.parameter_saver.add_layer("conv4_2", {"filter": 256, "kernel_size": [3,3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('fully1') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -153,6 +169,7 @@ class TFPModel(object):
                                                        biases_initializer=bias_init,
                                                        scope=scope, reuse=scope.reuse)
             print("fully1:", fully1)
+            self.parameter_saver.add_layer("fully1", {"inputs": "flat", "num_outputs": 1024, "activation": "relu"})
 
         with tf.variable_scope('fully2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -160,13 +177,15 @@ class TFPModel(object):
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             fully2 = tf.contrib.layers.fully_connected(fully1,
-                                                       16,
+                                                       7,
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
                                                        biases_initializer=bias_init,
                                                        scope=scope, reuse=scope.reuse)
             print("fully2:", fully2)
-
+            self.parameter_saver.add_layer("fully2", {"inputs": "flat", "num_outputs": 16, "activation": "relu"})
+            
+        self.parameter_saver.save()
         return fully2
 
     def loss_function(self, logits, labels):

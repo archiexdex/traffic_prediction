@@ -18,19 +18,19 @@ import pandas as pd
 from scipy.optimize import least_squares
 
 # FLAGs
-IS_LOSSES_SAVED = False
+IS_LOSSES_SAVED = True
 IS_PLOT_MODE = True
+OUTLIERS_THRSHOLD = 2
 
 # PATH
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
 FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/AREA_2/'
-RAW_DATA_FILENAME = DATA_PATH + 'raw_data.json'
+RAW_DATA_FILENAME = DATA_PATH + 'fix_raw_data_time0.json'
 
 # for plotting vd in 3d
 VD_NAMES = ['VMQGX40']
 # VD_NAMES = ['VMTG520', 'VMQGX40', 'VM7FI60', 'VLMG600',
 #             'VLYGU40', 'VN5HV60', 'VN5HV61', 'VLRHT00']
-GROUP_ID = '1'
 
 
 def generate_data_on_plane(weights, inputs):
@@ -132,12 +132,12 @@ def lsq_regressor(raw_data, vd_name, group_id, if_vis=False, outlier_mask=None):
     """
     target_vd_data = []
     if outlier_mask is not None:
-        for i, value in enumerate(np.array(raw_data[vd_name][group_id])[:, 0:5]):
+        for i, value in enumerate(np.array(raw_data[vd_name][group_id])[:, 0:3]):
             if not outlier_mask[vd_name][group_id][i]:  # is not outlier
                 target_vd_data.append(value)
         target_vd_data = np.array(target_vd_data)
     else:
-        target_vd_data = np.array(raw_data[vd_name][group_id])[:, 0:5]  # dfswt
+        target_vd_data = np.array(raw_data[vd_name][group_id])[:, 0:3]  # dfswt
     density = target_vd_data[:, 0]
     flow = target_vd_data[:, 1]
     speed = target_vd_data[:, 2]
@@ -188,8 +188,7 @@ def main():
                 print("Finished:: VD_NAME: %s, GROUP_ID: %s" %
                       (vd_name, group_id))
         with codecs.open(DATA_PATH + 'all_losses.json', 'w', 'utf-8') as out:
-            json.dump(all_losses, out,
-                      encoding="utf-8", ensure_ascii=False)
+            json.dump(all_losses, out)
 
     with codecs.open(DATA_PATH + 'all_losses.json', 'r', 'utf-8') as f:
         all_losses = json.load(f)
@@ -200,8 +199,8 @@ def main():
     numpy_all_losses = np.array(numpy_all_losses)
     mean = np.mean(numpy_all_losses)
     stddev = np.std(numpy_all_losses)
-    num_outliers = np.sum(numpy_all_losses > (mean + 1 * stddev)) + \
-        np.sum(numpy_all_losses < (mean - 1 * stddev))
+    num_outliers = np.sum(numpy_all_losses > (mean + OUTLIERS_THRSHOLD * stddev)) + \
+        np.sum(numpy_all_losses < (mean - OUTLIERS_THRSHOLD * stddev))
 
     outlier_mask = {}
     for vd_name in all_losses:
@@ -210,14 +209,13 @@ def main():
             outlier_mask[vd_name][group_id] = np.logical_or(all_losses[vd_name][group_id] > (
                 mean + 1 * stddev), all_losses[vd_name][group_id] < (mean - 1 * stddev)).tolist()
     with codecs.open(DATA_PATH + 'outlier_mask.json', 'w', 'utf-8') as out:
-        json.dump(outlier_mask, out,
-                    encoding="utf-8", ensure_ascii=False)
+        json.dump(outlier_mask, out)
 
     # log
     print('mean:', mean)
     print('stddev:', stddev)
     print('num_outliers:', num_outliers)
-    print('remove rate: %f %%' % (100 * num_outliers /
+    print('removed_rate: %f %%' % (100 * num_outliers /
                                   (numpy_all_losses.shape[0] * numpy_all_losses.shape[1])))
 
     # visulization
@@ -242,8 +240,7 @@ def main():
 
     if IS_PLOT_MODE:
         # load raw data
-        raw_filename = DATA_PATH + 'fix_raw_data.json'
-        with codecs.open(raw_filename, 'r', 'utf-8') as f:
+        with codecs.open(RAW_DATA_FILENAME, 'r', 'utf-8') as f:
             raw_data = json.load(f)
         # load outlier mask
         mask_filename = DATA_PATH + 'outlier_mask.json'

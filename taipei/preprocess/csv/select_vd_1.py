@@ -38,13 +38,14 @@ file_name_list  =  ["20150101000000_20150112000000",
 
 
 data = {}
-
 vd_list = []
-with open(file_path + "selected_vd.json") as file:
-    tmp = json.load(file)
-    vd_list = tmp["train"]
-    # for i in tmp["train"]:
-    #     vd_list.append(i)
+with open(file_path + "selected_vd.json") as fp:
+    tmp = json.load(fp)
+    vd_list = tmp["all_vd"]
+
+print(len(vd_list))
+
+miss_vd_list = []
 
 ma = -10123456789
 for file_name in file_name_list:
@@ -54,10 +55,16 @@ for file_name in file_name_list:
     print("reading ", file_name)
     if len(data) == 0:
         for vd in vd_list:
+            if vd not in tmp:
+                miss_vd_list.append(vd)
+                continue
             data[vd] = tmp[vd]
         
     else:
         for vd in vd_list:
+            if vd not in tmp or vd not in data:
+                miss_vd_list.append(vd)
+                continue
             for vd_grp in tmp[vd]:
                 
                 if vd_grp not in data[vd]:
@@ -70,7 +77,10 @@ for file_name in file_name_list:
     
 print("max:", ma)
 
-with open('raw_data.json', 'w') as fp:
+with open(file_path + 'miss_vd_list.json', 'w') as fp:
+    json.dump(miss_vd_list, fp)
+
+with open(file_path + 'raw_data.json', 'w') as fp:
     json.dump(data, fp)
 # np.save("raw_data", data)
 

@@ -101,7 +101,7 @@ def parse_data(root_path):
         json.dump(data_5, fp)
 
 
-root_path = "/home/xdex/Documents/Taipei_XML_data/XML/"
+root_path = "/home/xdex/Documents/Taipei_xml_data/XML/"
 
 
 dir_list = []
@@ -111,6 +111,8 @@ for root, dirs, files in os.walk(root_path):
     break
 
 for d in dir_list:
+    # if d != "20151201":
+    #     continue
     path = os.path.join(root_path, d)
     print(path)
     parse_data(path )

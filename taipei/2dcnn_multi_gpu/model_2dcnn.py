@@ -24,14 +24,16 @@ class TFPModel(object):
         self.learning_rate = config.learning_rate
         self.num_gpus = config.num_gpus
 
-        self.parameter_saver = parameter_saver.Parameter_saver("2 dimension CNN")
+        self.parameter_saver = parameter_saver.Parameter_saver(
+            "2 dimension CNN")
         self.parameter_saver.add_parameter("batch_size", self.batch_size)
         self.parameter_saver.add_parameter("learning_rate", self.learning_rate)
         self.parameter_saver.add_parameter("optimizer", "adam")
         self.parameter_saver.add_parameter("loss_function", "l2_loss")
         self.parameter_saver.add_parameter("log_dir", self.log_dir)
-        self.parameter_saver.add_parameter("num_gpu", self.num_gpus) 
-        self.parameter_saver.add_parameter("description", "data(timestamp) with longitude and latitude")
+        self.parameter_saver.add_parameter("num_gpu", self.num_gpus)
+        self.parameter_saver.add_parameter(
+            "description", "data(timestamp) with longitude and latitude")
 
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
@@ -50,10 +52,10 @@ class TFPModel(object):
                 batch_idx = i * num_batch_per_gpu
                 with tf.device('/gpu:%d' % i):
                     with tf.name_scope('tower_%d' % i) as scope:
-                        logits = self.inference(
+                        self.logits = self.inference(
                             self.X_ph[batch_idx:batch_idx + num_batch_per_gpu])
                         vd_losses, self.losses = self.loss_function(
-                            logits, self.Y_ph[batch_idx:batch_idx + num_batch_per_gpu])
+                            self.logits, self.Y_ph[batch_idx:batch_idx + num_batch_per_gpu])
                         vd_losses_sum.append(vd_losses)
                         # tf.summary.scalar('loss', losses)
                         # Reuse variables for the next tower.
@@ -63,7 +65,7 @@ class TFPModel(object):
         # get each vd mean loss of multi gpu
         self.each_vd_losses = tf.reduce_mean(vd_losses_sum, axis=0)
         print(self.each_vd_losses)
-        
+
         # We must calculate the mean of each gradient. Note that this is the
         # synchronization point across all towers.
         grads = self.average_gradients(tower_grads)
@@ -94,7 +96,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv1:", conv1)
-            self.parameter_saver.add_layer("conv1", {"filter": 64, "kernel_size": [3,3], "stride": 1, "padding": "same", "activation": "relu"})
+            self.parameter_saver.add_layer("conv1", {"filter": 64, "kernel_size": [
+                                           3, 3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv1_2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -106,7 +109,8 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             print("conv1_2:", conv1_2)
-            self.parameter_saver.add_layer("conv1_2", {"filter": 64, "kernel_size": [3,3], "stride": 1, "padding": "same", "activation": "relu"})
+            self.parameter_saver.add_layer("conv1_2", {"filter": 64, "kernel_size": [
+                                           3, 3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -118,7 +122,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv2:", conv2)
-            self.parameter_saver.add_layer("conv2", {"filter": 128, "kernel_size": [3,3], "stride": 2, "padding": "same", "activation": "relu"})
+            self.parameter_saver.add_layer("conv2", {"filter": 128, "kernel_size": [
+                                           3, 3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv3') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -130,7 +135,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv3:", conv3)
-            self.parameter_saver.add_layer("conv3", {"filter": 128, "kernel_size": [3,3], "stride": 1, "padding": "same", "activation": "relu"})
+            self.parameter_saver.add_layer("conv3", {"filter": 128, "kernel_size": [
+                                           3, 3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv4') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -142,7 +148,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv4:", conv4)
-            self.parameter_saver.add_layer("conv4", {"filter": 256, "kernel_size": [3,3], "stride": 2, "padding": "same", "activation": "relu"})
+            self.parameter_saver.add_layer("conv4", {"filter": 256, "kernel_size": [
+                                           3, 3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv4_2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -154,7 +161,8 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             print("conv4_2:", conv4_2)
-            self.parameter_saver.add_layer("conv4_2", {"filter": 256, "kernel_size": [3,3], "stride": 2, "padding": "same", "activation": "relu"})
+            self.parameter_saver.add_layer("conv4_2", {"filter": 256, "kernel_size": [
+                                           3, 3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('fully1') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -169,7 +177,8 @@ class TFPModel(object):
                                                        biases_initializer=bias_init,
                                                        scope=scope, reuse=scope.reuse)
             print("fully1:", fully1)
-            self.parameter_saver.add_layer("fully1", {"inputs": "flat", "num_outputs": 1024, "activation": "relu"})
+            self.parameter_saver.add_layer(
+                "fully1", {"inputs": "flat", "num_outputs": 1024, "activation": "relu"})
 
         with tf.variable_scope('fully2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -183,8 +192,9 @@ class TFPModel(object):
                                                        biases_initializer=bias_init,
                                                        scope=scope, reuse=scope.reuse)
             print("fully2:", fully2)
-            self.parameter_saver.add_layer("fully2", {"inputs": "flat", "num_outputs": 16, "activation": "relu"})
-            
+            self.parameter_saver.add_layer(
+                "fully2", {"inputs": "flat", "num_outputs": 16, "activation": "relu"})
+
         self.parameter_saver.save()
         return fully2
 
@@ -223,8 +233,14 @@ class TFPModel(object):
     def compute_loss(self, sess, inputs, labels):
         feed_dict = {self.X_ph: inputs,
                      self.Y_ph: labels}
-        each_vd_losses, losses = sess.run([self.each_vd_losses, self.losses], feed_dict=feed_dict)
+        each_vd_losses, losses = sess.run(
+            [self.each_vd_losses, self.losses], feed_dict=feed_dict)
         return each_vd_losses, losses
+
+    def predict(self, sess, inputs):
+        feed_dict = {self.X_ph: inputs}
+        prediction = sess.run(self.logits, feed_dict=feed_dict)
+        return prediction
 
     def average_gradients(self, tower_grads):
         """
@@ -284,8 +300,8 @@ def test():
     with tf.Graph().as_default() as g:
         model = TFPModel(TestingConfig(), graph=g)
         # train
-        X = np.zeros(shape=[256, 62, 12, 4])
-        Y = np.zeros(shape=[256, 62])
+        X = np.zeros(shape=[256, 60, 12, 7])
+        Y = np.zeros(shape=[256, 7])
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             model.step(sess, X, Y)

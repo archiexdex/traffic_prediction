@@ -100,15 +100,18 @@ def main():
     # split data into 9:1 as num_train_data:num_test_data
     train_data, test_data = np.split(
         input_organized_data, [input_organized_data.shape[0] * 9 // 10])
-    np.save(DATA_PATH+'train_data.npy', train_data)
-    np.save(DATA_PATH+'test_data.npy', test_data)
+
+    np.save(DATA_PATH + 'train_data.npy', train_data)
+    np.save(DATA_PATH + 'test_data.npy', test_data)
     print(train_data.shape)
     print(test_data.shape)
     print('data saved')
     train_label, test_label = np.split(
         label_organized_data, [label_organized_data.shape[0] * 9 // 10])
-    np.save(DATA_PATH+'train_label.npy', train_label)
-    np.save(DATA_PATH+'test_label.npy', test_label)
+
+    np.save(DATA_PATH + 'train_label.npy', train_label)
+    np.save(DATA_PATH + 'test_label.npy', test_label)
+
     print(train_label.shape)
     print(test_label.shape)
     print('label saved')

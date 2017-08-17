@@ -12,8 +12,6 @@ import numpy as np
 # choose 1 or 5 to fix different mode data
 mode = 5
 time_padding = 30
-# 1 means time = mode * 1 e.g. long_period = 1 and mode = 5 means if there are more than 5 minutes data be [0, 0, 0], we will mask it
-long_period = 4
 # 2015/12/01 00:00:00 ~ 2017/07/31 23:55:00
 start_time = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
 end_time   = time.mktime( datetime.datetime.strptime("2017-08-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
@@ -34,18 +32,55 @@ elif mode == 5:
     save_path = root_path + "5/fix_data/"
 
 miss_dict = {}
+for i in range(10):
+    miss_dict[i] = 0
+max_miss = -1023456789
+min_miss =  1023456789
 
 def check_data(path):
+    global max_miss
+    global min_miss
+
     data = np.load(path)
     t = np.argwhere(data == 1)
-    miss_dict[vd_name] = len(t) / data.shape[0]
+    miss_rate = len(t) / data.shape[0]
+    if vd_name not in miss_dict:
+        miss_dict[vd_name] = {}
+    miss_dict[vd_name][vd_grp] = miss_rate
 
+    max_miss = miss_rate if max_miss < miss_rate else max_miss
+    min_miss = miss_rate if min_miss > miss_rate else min_miss
+    miss_dict["max_miss"] = max_miss
+    miss_dict["min_miss"] = min_miss
+    
+    if miss_rate > 0.9:
+        miss_dict[9] += 1
+    elif miss_rate > 0.8:
+        miss_dict[8] += 1
+    elif miss_rate > 0.7:
+        miss_dict[7] += 1
+    elif miss_rate > 0.6:
+        miss_dict[6] += 1
+    elif miss_rate > 0.5:
+        miss_dict[5] += 1
+    elif miss_rate > 0.4:
+        miss_dict[4] += 1
+    elif miss_rate > 0.3:
+        miss_dict[3] += 1
+    elif miss_rate > 0.2:
+        miss_dict[2] += 1
+    elif miss_rate > 0.1:
+        miss_dict[1] += 1
+    else:
+        miss_dict[0] += 1
+    
 
 for root, dirs, files in os.walk(mask_path):
     for file in files:
         path = os.path.join(mask_path, file)
         print("Fixing VD: "+file)
         vd_name = file[:7]
+        vd_grp = file[8:9]
         check_data(path)
         
     break

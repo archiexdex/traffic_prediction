@@ -18,43 +18,39 @@ plotly.tools.set_credentials_file(
 import plotly.plotly as py
 import plotly.graph_objs as go
 
-DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
-DATA_TRAIN_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/preprocess/'
-FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/2YEAR_VP8GX40/'
+DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/fix_data/'
+FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/NEW_VDS/'
 
 DRAW_ONLINE_FLAG = False
-# VD_NAMES = ['VMTG520', 'VMQGX40', 'VM7FI60', 'VLMG600', 'VLYGU40', 'VN5HV60', 'VN5HV61', 'VLRHT00']
-# VD_NAMES = ['VP8GI60', 'VNNFY00', 'VP8GX40', 'VP8GX00', 'VP8GI20']
-VD_NAMES = ['VMQGX40']
-# VD_NAMES = ['VMTG520', 'VMQGX40', 'VLRHT00']
+
+VD_NAMES = ["VN9PZ60_0", "VN9PZ60_1","VMEKQ41_0", "VMEKQ41_1", "VL7PX00_0", "VL7PX00_1", "V1220E0_0", "V1220E0_1"]  # 'vdname_groupid'
 START_DAYS = [1]
 DURATION = 600
 
 
-def plot_duration(raw_data, vd_name, group_id, start_day, duration):
+def plot_duration(vd_name, start_day, duration):
     """
     Params:
-        raw_data:
         vd_name:
-        group_id:
         start_day:
         duration:
     Return:
     """
-    target_vd_data = np.array(raw_data[vd_name][group_id])[
+    raw_filename = DATA_PATH + vd_name + '.npy'
+    target_vd_data = np.load(raw_filename)[
         start_day * 12 * 24:(start_day + duration) * 12 * 24, 0:5]
-    # print(target_vd_data.shape)
+    print(target_vd_data.shape)
 
     # Add data
-    start_week_day = target_vd_data[140, 3]
+    start_week_day = target_vd_data[140, 4]
     start_date = datetime.datetime.fromtimestamp(
         target_vd_data[140, 4]).strftime("%Y-%m-%d")
     end_date = datetime.datetime.fromtimestamp(
         target_vd_data[-140, 4]).strftime("%Y-%m-%d")
-    target_vd_density = target_vd_data[:, 0]
-    target_vd_flow = target_vd_data[:, 1]
-    target_vd_speed = target_vd_data[:, 2]
-    target_vd_timestamp = target_vd_data[:, 4]
+    target_vd_density = target_vd_data[:, 1]
+    target_vd_flow = target_vd_data[:, 2]
+    target_vd_speed = target_vd_data[:, 3]
+    target_vd_timestamp = target_vd_data[:, 0]
     time_list = []
     for _, v in enumerate(target_vd_timestamp):
         time_list.append(datetime.datetime.fromtimestamp(
@@ -88,33 +84,27 @@ def plot_duration(raw_data, vd_name, group_id, start_day, duration):
     data = [trace_density, trace_flow, trace_speed]
 
     # Edit the layout
-    layout = dict(title="VD_NAME: %s, GROUP_ID: %s, START_DATE: %s, END_DATE: %s, START_WEEK_DAY: %d" % (vd_name, group_id, start_date, end_date, start_week_day),
+    layout = dict(title="VD_NAME: %s, START_DATE: %s, END_DATE: %s, START_WEEK_DAY: %d" % (vd_name, start_date, end_date, start_week_day),
                   xaxis=dict(title='Time'),
                   yaxis=dict(title='Value'),
                   )
 
     fig = dict(data=data, layout=layout)
     if DRAW_ONLINE_FLAG:
-        py.plot(fig, filename="VD_NAME: %s, GROUP_ID: %s, START_DATE: %s, END_DATE: %s, START_WEEK_DAY: %d" %
-                (vd_name, group_id, start_date, end_date, start_week_day))
+        py.plot(fig, filename="VD_NAME: %s, START_DATE: %s, END_DATE: %s, START_WEEK_DAY: %d" %
+                (vd_name, start_date, end_date, start_week_day))
     else:
-        plotly.offline.plot(fig, filename=FOLDER_PATH + "VD_NAME: %s, GROUP_ID: %s, START_DATE: %s, END_DATE: %s, START_WEEK_DAY: %d.html" %
-                            (vd_name, group_id, start_date, end_date, start_week_day))
+        plotly.offline.plot(fig, filename=FOLDER_PATH + "VD_NAME: %s, START_DATE: %s, END_DATE: %s, START_WEEK_DAY: %d.html" %
+                            (vd_name, start_date, end_date, start_week_day))
 
 
 def main():
-    # load raw data
-    raw_filename = DATA_PATH + 'fix_raw_data.json'
-    with codecs.open(raw_filename, 'r', 'utf-8') as f:
-        raw_data = json.load(f)
-
     # plot
     for start_day in START_DAYS:
         for vd_name in VD_NAMES:
-            for group_id in raw_data[vd_name]:
-                plot_duration(raw_data, vd_name, group_id, start_day, DURATION)
-                print("Finished:: VD_NAME: %s, GROUP_ID: %s, START_DAY: %d" %
-                    (vd_name, group_id, start_day))
+            plot_duration(vd_name, start_day, DURATION)
+            print("Finished:: VD_NAME: %s, START_DAY: %d" %
+                  (vd_name, start_day))
 
 
 if __name__ == '__main__':

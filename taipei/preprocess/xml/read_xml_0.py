@@ -56,7 +56,7 @@ def parse_data(root_path):
                     time_stamp = int(time.mktime( datetime.strptime(elem.attrib["datacollecttime"], "%Y/%m/%d %H:%M:%S").timetuple() ))
 
                 if elem.tag == "lane":
-                    lane_order = int(elem.attrib["vsrdir"])
+                    lane_order = int(elem.attrib["vsrid"])
                     density    = float(elem.attrib["laneoccupy"])
                     speed      = float(elem.attrib["speed"])
                 

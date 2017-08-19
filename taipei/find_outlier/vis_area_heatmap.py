@@ -28,9 +28,9 @@ IS_DRAW_DISCRETE = False
 # PATH
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
 VD_GPS_FILE = os.path.join(DATA_PATH, 'new_raw_data/VD_GPS.npy')
-MISSING_MASK_PATH = os.path.join(DATA_PATH, 'new_raw_data/vd_base/5/mask/')
+MISSING_MASK_PATH = os.path.join(DATA_PATH, 'new_raw_data/vd_base/5/mask_grp/')
 OUTLIER_MASK_PATH = os.path.join(
-    DATA_PATH, 'new_raw_data/vd_base/5/outlier_mask/')
+    DATA_PATH, 'new_raw_data/vd_base/5/outlier_mask_grp/')
 
 
 def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
@@ -170,6 +170,7 @@ def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
     fig = go.Figure(data=data, layout=layout)
     plotly.offline.plot(
         fig, filename='statistics of missing data and outliers.html')
+    print('file saved: statistics of missing data and outliers.html')
     return
 
 # # Parameters

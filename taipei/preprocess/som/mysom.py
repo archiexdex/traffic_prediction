@@ -14,7 +14,11 @@ n = 30
 print("Reading vd_list...")
 vd_list = []
 for root, dirs, files in os.walk(root_path + "new_raw_data/vd_base/5/fix_data/"):
-    tmp = [ x[:7] for x in files]        
+    tmp = {}
+    for fp in files:
+        tmp[fp[:7]] = 0
+    for key in tmp:
+        vd_list.append(key)
     break
 
 print("Reading VD_GPS...")

@@ -9,27 +9,28 @@ import numpy as np
 """
     Variables
 """
-# choose 1 or 5 to fix different mode data
-mode = 5
-time_padding = 30
+# choose 1 or 0 to fix different mode data
+mode = 0
 # 2015/12/01 00:00:00 ~ 2017/07/31 23:55:00
 start_time = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
 end_time   = time.mktime( datetime.datetime.strptime("2017-08-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
 data_size  = int((end_time - start_time) / 300)
+
+st_time = datetime.datetime.now()
 
 root_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/"
 data_path = ""
 mask_path = ""
 save_path = ""
 vd_name   = "" 
-if mode == 1:
-    data_path = root_path + "1/data/"
-    mask_path = root_path + "1/mask/"
-    save_path = root_path + "1/fix_data/"
-elif mode == 5:
-    data_path = root_path + "5/data/"
-    mask_path = root_path + "5/mask/" 
-    save_path = root_path + "5/fix_data/"
+if mode == 0:
+    data_path = root_path + "5/data_group/"
+    mask_path = root_path + "5/mask_group/" 
+    save_path = root_path + "5/fix_data_group/"
+elif mode == 1:
+    data_path = root_path + "5/data_lane/"
+    mask_path = root_path + "5/mask_lane/" 
+    save_path = root_path + "5/fix_data_lane/"
 
 miss_dict = {}
 for i in range(10):
@@ -84,6 +85,13 @@ for root, dirs, files in os.walk(mask_path):
         check_data(path)
         
     break
+if mode == 0:
+    with open(root_path + "5/miss_rate_group.json", 'w') as fp:
+        json.dump(miss_dict, fp)
+elif mode == 1:
+    with open(root_path + "5/miss_rate_lane.json", 'w') as fp:
+        json.dump(miss_dict, fp)
 
-with open(root_path + "5/miss_rate.json", 'w') as fp:
-    json.dump(miss_dict, fp)
+
+ed_time = datetime.datetime.now()
+print("Finishing...", ed_time-st_time)

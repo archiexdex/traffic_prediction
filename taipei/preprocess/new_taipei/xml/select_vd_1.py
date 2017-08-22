@@ -31,7 +31,7 @@ while True:
         break
 
     print(now)
-    file_path = read_path + "1/" + now + ".json" if mode == 1 else read_path + "5/" + now + ".json"
+    file_path = read_path + "1/" + now + ".json" if mode == 1 else read_path + "5_lane/" + now + ".json"
     
     with open(file_path ) as fp:
         tmp = json.load(fp)

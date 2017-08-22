@@ -1,56 +1,67 @@
 # Python 2
-from sklearn import preprocessing
-from model_som import SOM
-import numpy as np
-import matplotlib.pyplot as plt
+import os
 import json 
 import math
-
+import numpy as np
+from sklearn import preprocessing
+from model_som import SOM
+import matplotlib.pyplot as plt
 
 root_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/"
-m = 10
-n = 10
+m = 30
+n = 30
 
 print("Reading vd_list...")
 vd_list = []
-with open(root_path + "selected_vd.json") as fp:
-    tmp = json.load(fp)
-    vd_list = tmp["label"]["1"]
+for root, dirs, files in os.walk(root_path + "new_raw_data/vd_base/5/fix_data/"):
+    tmp = {}
+    for fp in files:
+        tmp[fp[:7]] = 0
+    for key in tmp:
+        vd_list.append(key)
+    break
 
 print("Reading VD_GPS...")
-vd_gps = np.load(root_path + "VD_GPS.npy").item()
+vd_gps = np.load(root_path + "new_raw_data/VD_GPS.npy").item()
 
 print("Making input data...")
 data = []
-label_list = []
-with open(root_path + "fix_raw_data.json") as fp:
-    tmp = json.load(fp)
-    for key in vd_list:
-        for grp in tmp[key]:
-            data.append(vd_gps[key])   
-            label_list.append(key)
+label_data = []
+for vd in vd_list:
+    if vd not in vd_gps:
+        continue
+    data.append(vd_gps[vd])
+    label_data.append(vd)
 
 # Normalization
 data = preprocessing.MinMaxScaler().fit_transform(data)
 data = np.array(data)
 
-# Initialize SOM and training
-som = SOM(m,n,2)
-som.train(data)
+grid = []
+try:
+    grid = np.load( "som_grid.npy")
+except:
+    pass
 
-#Get output grid
-image_grid = som.get_centroids()
+if grid == []:
+    # Initialize SOM and training
+    som = SOM(m,n,2)
+    som.train(data)
 
-#Map colours to their closest neurons
-mapped = som.map_vects(data)
+    #Get output grid
+    image_grid = som.get_centroids()
 
-grid = np.array(image_grid)
+    #Map colours to their closest neurons
+    mapped = som.map_vects(data)
 
-np.save("som_grid", grid)
+    grid = np.array(image_grid)
+
+    np.save("som_grid", grid)
+
 
 # Find which vd in which grid
 check_map = np.zeros([m,n])
-ret_map = np.zeros([m,n]).tolist()
+ret_dict = {}
 for idx, v in enumerate(data):
     mi = 123456789
     ptr = [-1, -1]
@@ -62,9 +73,16 @@ for idx, v in enumerate(data):
             if mi > dist and check_map[i][j] == 0:
                 mi = dist
                 ptr = [i, j]
-    ret_map[ptr[0]][ptr[1]] = label_list[idx]
+    ret_dict[label_data[idx]] = ptr
     check_map[ptr[0]][ptr[1]] = 1  
+    if label_data[idx] == "VIKPW61":
+        
+        print("rec_dist [vd]:", label_data[idx], ret_dict[label_data[idx]], ptr)
+    # qq = raw_input("!")
 
-print(ret_map)
-np.save("som_map", ret_map)
+print(len(data))
+print(ret_dict)
+
+with open(root_path + "som_list.json", "w") as fp:
+    json.dump(ret_dict, fp)
 

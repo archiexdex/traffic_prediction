@@ -26,11 +26,11 @@ ACCESS_TOKEN = 'pk.eyJ1IjoiY2h5Y2hlbiIsImEiOiJjajZoaWo5aHYwNm44MnF0ZW56MTljaGp1I
 IS_DRAW_DISCRETE = False
 
 # PATH
-DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
-VD_GPS_FILE = os.path.join(DATA_PATH, 'new_raw_data/VD_GPS.npy')
-MISSING_MASK_PATH = os.path.join(DATA_PATH, 'new_raw_data/vd_base/5/mask_grp/')
+DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/'
+VD_GPS_FILE = os.path.join(DATA_PATH, 'VD_GPS.npy')
+MISSING_MASK_PATH = os.path.join(DATA_PATH, 'vd_base/5/mask_group/')
 OUTLIER_MASK_PATH = os.path.join(
-    DATA_PATH, 'new_raw_data/vd_base/5/outlier_mask_grp/')
+    DATA_PATH, 'vd_base/5/mask_outlier/')
 
 
 def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
@@ -63,32 +63,28 @@ def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
     data_dict['lon'] = []
     data_dict['vd_name'] = []
     for vd_name in vd_gps_dict:
-        try:
-            data_dict['missing'].append(missing_dict[vd_name + '_0'])
-            data_dict['outlier'].append(outliers_dict[vd_name + '_0'])
-            data_dict['both'].append(both_dict[vd_name + '_0'])
-            data_dict['lat'].append(vd_gps_dict[vd_name][0])
-            data_dict['lon'].append(vd_gps_dict[vd_name][1] - 0.0001)
-            data_dict['vd_name'].append(vd_name + '_0')
-        except:
-            print('QQ cannot find vd %s group0' % vd_name)
-        try:
-            data_dict['missing'].append(missing_dict[vd_name + '_1'])
-            data_dict['outlier'].append(outliers_dict[vd_name + '_1'])
-            data_dict['both'].append(both_dict[vd_name + '_1'])
-            data_dict['lat'].append(vd_gps_dict[vd_name][0])
-            data_dict['lon'].append(vd_gps_dict[vd_name][1] + 0.0001)
-            data_dict['vd_name'].append(vd_name + '_1')
-        except:
-            print('QQ cannot find vd %s group1' % vd_name)
+        for group_id in range(5):
+            try:
+                data_dict['missing'].append(
+                    missing_dict[vd_name + '_%s' % group_id])
+                data_dict['outlier'].append(
+                    outliers_dict[vd_name + '_%s' % group_id])
+                data_dict['both'].append(both_dict[vd_name + '_%s' % group_id])
+                data_dict['lat'].append(vd_gps_dict[vd_name][0])
+                data_dict['lon'].append(
+                    vd_gps_dict[vd_name][1] + group_id * 0.0001)
+                data_dict['vd_name'].append(vd_name + '_%s' % group_id)
+            except:
+                print('QQ cannot find vd: %s, grp: %s' % (vd_name, group_id))
 
     # prepare vis
     # color scale from blue to red
-    scl = [[0, "rgb(220, 0, 0)"], [1, "rgb(0, 0, 220)"]]
+    scl = [[0.0, "rgb(255, 0, 0)"], [0.6, "rgb(255, 0, 0)"], [0.7, "rgb(255, 255, 0)"], [0.8, "rgb(0, 255, 255)"], [1.0, "rgb(0, 0, 255)"], ]
     # traces
     description_list = []
     for vd_name_g, num_missing, num_outlier, num_both in zip(data_dict['vd_name'], data_dict['missing'], data_dict['outlier'], data_dict['both']):
-        description = 'VD: %s, missing: %f %%, outlier: %f %%, both: %f %%' %(vd_name_g, num_missing, num_outlier, num_both)
+        description = 'VD: %s, missing: %f %%, outlier: %f %%, both: %f %%' % (
+            vd_name_g, num_missing, num_outlier, num_both)
         description_list.append(description)
     missing_trace = Scattermapbox(
         name='missing rate',
@@ -165,6 +161,10 @@ def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
             pitch=0,
             zoom=10
         ),
+        xaxis=dict(
+            rangeslider=dict(),
+            type='date'
+        )
     )
 
     fig = go.Figure(data=data, layout=layout)
@@ -173,9 +173,11 @@ def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
     print('file saved: statistics of missing data and outliers.html')
     return
 
+
 # # Parameters
 MAP_ROWS = 30
 MAP_COLS = 30
+
 
 def draw_discrete_heatmap(vd_loc_dict, missing_dict, outliers_dict, both_dict):
     """draw heatmap by the rate of each type of statistics, including mssing data rate, outliers rate, both above attribute rate
@@ -258,8 +260,10 @@ def main():
                 missing_mask = np.load(missing_mask_path)
                 outlier_mask = np.load(outlier_mask_path)
                 key_name = file_name[:-4]  # remove '.npy'
-                missing_statistics[key_name] = np.sum(missing_mask) / missing_mask.shape[0] * 100
-                outlier_statistics[key_name] = np.sum(outlier_mask) / outlier_mask.shape[0] * 100
+                missing_statistics[key_name] = np.sum(
+                    missing_mask) / missing_mask.shape[0] * 100
+                outlier_statistics[key_name] = np.sum(
+                    outlier_mask) / outlier_mask.shape[0] * 100
                 both_statistics[key_name] = np.sum(
                     np.logical_or(missing_mask, outlier_mask)) / missing_mask.shape[0] * 100
 
@@ -286,8 +290,10 @@ def main():
                 missing_mask = np.load(missing_mask_path)
                 outlier_mask = np.load(outlier_mask_path)
                 key_name = file_name[:-4]  # remove '.npy'
-                missing_statistics[key_name] = np.sum(missing_mask) / missing_mask.shape[0] * 100
-                outlier_statistics[key_name] = np.sum(outlier_mask) / outlier_mask.shape[0] * 100
+                missing_statistics[key_name] = np.sum(
+                    missing_mask) / missing_mask.shape[0] * 100
+                outlier_statistics[key_name] = np.sum(
+                    outlier_mask) / outlier_mask.shape[0] * 100
                 both_statistics[key_name] = np.sum(
                     np.logical_or(missing_mask, outlier_mask)) / missing_mask.shape[0] * 100
 

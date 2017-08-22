@@ -18,12 +18,13 @@ plotly.tools.set_credentials_file(
 import plotly.plotly as py
 import plotly.graph_objs as go
 
-DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/fix_data/'
+DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/fix_data_group/'
 FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/NEW_VDS/'
 
 DRAW_ONLINE_FLAG = False
 
-VD_NAMES = ["VN9PZ60_0", "VN9PZ60_1","VMEKQ41_0", "VMEKQ41_1", "VL7PX00_0", "VL7PX00_1", "V1220E0_0", "V1220E0_1"]  # 'vdname_groupid'
+# VD_NAMES = ["VN9PZ60_0", "VN9PZ60_1","VMEKQ41_0", "VMEKQ41_1", "VL7PX00_0", "VL7PX00_1", "V1220E0_0", "V1220E0_1"]  # 'vdname_groupid'
+VD_NAMES = ["VP8GI20_0"]  # 'vdname_groupid'
 START_DAYS = [1]
 DURATION = 600
 

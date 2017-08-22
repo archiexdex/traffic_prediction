@@ -30,11 +30,11 @@ OUTLIERS_THRSHOLD = 1
 
 # PATH
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/'
-FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/AREA_test_outliers_1stddev/'
+FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/AREA/'
 RAW_DATA_FILENAME = DATA_PATH + 'fix_raw_data_time0.json'
 
 # for plotting vd in 3d
-VD_NAMES = ['VMQGX40']
+VD_NAMES = ['VP8GI20']
 # VD_NAMES = ['VMTG520', 'VMQGX40', 'VM7FI60', 'VLMG600',
 #             'VLYGU40', 'VN5HV60', 'VN5HV61', 'VLRHT00']
 

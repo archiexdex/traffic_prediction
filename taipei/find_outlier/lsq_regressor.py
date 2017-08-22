@@ -25,11 +25,11 @@ import pandas as pd
 from scipy.optimize import least_squares
 
 # FLAGs
-OUTLIERS_THRSHOLD = 1
+OUTLIERS_THRSHOLD = 2
 
 # PATH
-DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/fix_data_grp/'
-MASK_SAVED_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/outlier_mask_grp/'
+DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/fix_data_group/'
+MASK_SAVED_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/mask_outlier/'
 FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/AREA_2/'
 
 
@@ -169,7 +169,6 @@ def lsq_regressor(raw_data, vd_name, if_vis=False, outlier_mask=None):
 
 
 def main():
-    # n = 10
     all_losses_dict = {}
     for path, _, file_names in os.walk(DATA_PATH):
         for file_name in file_names:
@@ -178,9 +177,6 @@ def main():
             _, losses = lsq_regressor(
                 vd_data, file_name[:-4], if_vis=False)  # [:-4]: remove '.npy'
             all_losses_dict[file_name] = losses
-            # n -= 1
-            # if n == 0:
-            #     break
     all_losses_np = np.array(list(all_losses_dict.values()))
     print('all_losses_np.shape', all_losses_np.shape)
     print('all_losses_np.dtype', all_losses_np.dtype)

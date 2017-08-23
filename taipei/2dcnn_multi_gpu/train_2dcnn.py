@@ -20,7 +20,7 @@ tf.app.flags.DEFINE_string("train_label", "train_label.npy",
                            "training label data name")
 tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
-tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/preprocess/',
+tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'v3/checkpoints/',
                            "training checkpoints directory")
@@ -29,7 +29,7 @@ tf.app.flags.DEFINE_string('log_dir', 'v3/log/',
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 1000,
+tf.app.flags.DEFINE_integer('total_epoches', 5000,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
@@ -78,7 +78,8 @@ def main(_):
         config.show()
         # training loss saver
         loss_saver = parameter_saver.Training_loss_saver()
-        loss_saver.add_parameter("description", "data(timestamp) with longitude and latitude")
+        loss_saver.add_parameter(
+            "description", "new taipei data with low timestamp(fix bug)")
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :]
         test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]
@@ -151,7 +152,8 @@ def main(_):
                     test_each_vd_losses_sum.append(test_each_vd_losses)
                     test_loss_sum += test_losses
                 test_each_vd_losses_sum = np.array(test_each_vd_losses_sum)
-                test_each_vd_losses_mean = np.mean(test_each_vd_losses_sum, axis=0)
+                test_each_vd_losses_mean = np.mean(
+                    test_each_vd_losses_sum, axis=0)
                 end_time = time.time()
                 # logging per ephoch
                 print("%d epoches, %d steps, mean train loss: %f, test mean loss: %f, time cost: %f(sec/batch)" %
@@ -164,7 +166,7 @@ def main(_):
                 print(each_vd_losses_mean)
                 print("each test vd's mean loss:")
                 print(test_each_vd_losses_mean)
-                
+
                 # train mean ephoch loss
                 train_scalar_summary = tf.Summary()
                 train_scalar_summary.value.add(
@@ -181,16 +183,17 @@ def main(_):
                 valid_summary_writer.flush()
 
                 # save checkpoints
-                if (global_ephoch % FLAGS.save_freq) == 0 or global_ephoch < 10:
+                if (global_ephoch % FLAGS.save_freq) == 0:
                     save_path = saver.save(
                         sess, FLAGS.checkpoints_dir + "model.ckpt",
                         global_step=global_step)
                     print("Model saved in file: %s" % save_path)
-                    # save the loss
-                    loss_saver.add_loss( global_ephoch, 
-                                         train_loss_sum / train_num_batch, 
-                                         test_loss_sum / test_num_batch)
-                    loss_saver.save()
+
+                # save the loss
+                loss_saver.add_loss(global_ephoch,
+                                    train_loss_sum / train_num_batch,
+                                    test_loss_sum / test_num_batch)
+                loss_saver.save()
 
 
 if __name__ == "__main__":

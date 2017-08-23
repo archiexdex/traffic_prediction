@@ -33,13 +33,13 @@ class TFPModel(object):
         self.parameter_saver.add_parameter("log_dir", self.log_dir)
         self.parameter_saver.add_parameter("num_gpu", self.num_gpus)
         self.parameter_saver.add_parameter(
-            "description", "data(timestamp) with longitude and latitude")
+            "description", "new taipei data")
 
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 60, 12, 7], name='input_data')
+            None, 101, 12, 5], name='input_data')
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 7], name='label_data')
+            None, 29], name='label_data')
 
         optimizer = tf.train.AdamOptimizer(
             learning_rate=self.learning_rate)
@@ -186,14 +186,14 @@ class TFPModel(object):
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             fully2 = tf.contrib.layers.fully_connected(fully1,
-                                                       7,
+                                                       29,
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
                                                        biases_initializer=bias_init,
                                                        scope=scope, reuse=scope.reuse)
             print("fully2:", fully2)
             self.parameter_saver.add_layer(
-                "fully2", {"inputs": "flat", "num_outputs": 16, "activation": "relu"})
+                "fully2", {"inputs": "fully1", "num_outputs": 29, "activation": "relu"})
 
         self.parameter_saver.save()
         return fully2

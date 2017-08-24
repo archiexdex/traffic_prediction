@@ -35,7 +35,7 @@ tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
-tf.app.flags.DEFINE_float('learning_rate', 0.0001,
+tf.app.flags.DEFINE_float('learning_rate', 0.00001,
                           "learning rate of AdamOptimizer")
 tf.app.flags.DEFINE_integer('num_gpus', 2,
                             "multi gpu")
@@ -48,7 +48,7 @@ class ModelConfig(object):
     testing config
     """
 
-    def __init__(self):
+    def __init__(self, train_shape, test_shape):
         self.data_dir = FLAGS.data_dir
         self.checkpoints_dir = FLAGS.checkpoints_dir
         self.log_dir = FLAGS.log_dir
@@ -58,6 +58,9 @@ class ModelConfig(object):
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
         self.num_gpus = FLAGS.num_gpus
+        self.train_shape = train_shape
+        self.test_shape = test_shape
+        self.is_test = False
 
     def show(self):
         print("data_dir:", self.data_dir)
@@ -69,17 +72,16 @@ class ModelConfig(object):
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
         print("num_gpus:", self.num_gpus)
-
+        print("train_shape:", self.train_shape)
+        print("test_shape:", self.test_shape)
+        print("is_test:", self.is_test)
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
-        # config setting
-        config = ModelConfig()
-        config.show()
         # training loss saver
         loss_saver = parameter_saver.Training_loss_saver()
         loss_saver.add_parameter(
-            "description", "new taipei data with low timestamp(fix bug)")
+            "description", "remove some bad VD train(VPJFZ00), label(VP8GI20, VP8GI60, VP8GX40, VMXH820)")
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :]
         test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]
@@ -91,7 +93,10 @@ def main(_):
         print(train_num_batch)
         print(test_num_batch)
         loss_saver.add_parameter("input_shape", train_data.shape)
-        loss_saver.add_parameter("test_shape", test_data.shape)
+        loss_saver.add_parameter("test_shape", train_label.shape)
+        # config setting
+        config = ModelConfig(train_data.shape, train_label.shape)
+        config.show()
         # model
         model = model_2dcnn.TFPModel(config, graph=graph)
         # Add an op to initialize the variables.

@@ -42,27 +42,6 @@ def main():
     train_mask = []
     for vd in target_vd_list["train"]:
         for grp in vd_grp_lane_list[vd]:
-            
-            vd_filenme       = DATA_PATH + "5/fix_data_group/" + vd + "_" + grp + ".npy"
-            mask_filename    = DATA_PATH + "5/mask_group/"     + vd + "_" + grp + ".npy"
-            outlier_filename = DATA_PATH + "5/mask_outlier/"   + vd + "_" + grp + ".npy"
-
-            vd_file      = np.load(vd_filenme)
-            mask_file    = np.load(mask_filename)
-            outlier_file = np.load(outlier_filename)
-
-            train_data.append(vd_file)
-            mask_file |= outlier_file
-            train_mask.append(mask_file)
-
-    # gather label data into one tensor according to vd_grp_lane_list
-    label_data = []
-    label_mask = []
-    i = 0
-    for vd in target_vd_list["label"]:
-        for grp in vd_grp_lane_list[vd]:
-            print(i, vd, grp)
-            i += 1
             vd_filenme       = DATA_PATH + "5/fix_data_group/" + vd + "_" + grp + ".npy"
             mask_filename    = DATA_PATH + "5/mask_group/"     + vd + "_" + grp + ".npy"
             outlier_filename = DATA_PATH + "5/mask_outlier/"   + vd + "_" + grp + ".npy"
@@ -72,10 +51,40 @@ def main():
             outlier_file = np.load(outlier_filename)
 
             vd_file[:,0] = (vd_file[:,0] - START_TIME) / 300
+
+            for i in vd_file:
+                if i[0] > 1440:
+                    i[0] -= 1440
+            train_data.append(vd_file)
+            mask_file |= outlier_file
+            train_mask.append(mask_file)
+
+    print("!")
+    # gather label data into one tensor according to vd_grp_lane_list
+    label_data = []
+    label_mask = []
+    k = 0
+    for vd in target_vd_list["label"]:
+        for grp in vd_grp_lane_list[vd]:
+            print(k, vd, grp)
+            k += 1
+            vd_filenme       = DATA_PATH + "5/fix_data_group/" + vd + "_" + grp + ".npy"
+            mask_filename    = DATA_PATH + "5/mask_group/"     + vd + "_" + grp + ".npy"
+            outlier_filename = DATA_PATH + "5/mask_outlier/"   + vd + "_" + grp + ".npy"
+
+            vd_file      = np.load(vd_filenme)
+            mask_file    = np.load(mask_filename)
+            outlier_file = np.load(outlier_filename)
+
+            vd_file[:,0] = (vd_file[:,0] - START_TIME) / 300
+            for i in vd_file:
+                if i[0] > 1440:
+                    i[0] -= 1440
+                
             label_data.append(vd_file)
             mask_file |= outlier_file
             label_mask.append(mask_file)
-    exit()
+    
     train_data = np.array(train_data)
     train_mask = np.array(train_mask)
     label_data = np.array(label_data)
@@ -95,7 +104,7 @@ def main():
 
         if len(train) == 0 and len(label) == 0:
             input_organized_data.append(train_data[:, i:i + 12, :])
-            label_organized_data.append(label_data[:, i + 12, 1])
+            label_organized_data.append(label_data[:, i + 12, 2])
 
     input_organized_data = np.array(input_organized_data)
     label_organized_data = np.array(label_organized_data)

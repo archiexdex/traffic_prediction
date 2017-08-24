@@ -19,27 +19,31 @@ class TFPModel(object):
             config:
             graph:
         """
-        self.batch_size = config.batch_size
-        self.log_dir = config.log_dir
+        self.batch_size    = config.batch_size
+        self.log_dir       = config.log_dir
         self.learning_rate = config.learning_rate
-        self.num_gpus = config.num_gpus
+        self.num_gpus      = config.num_gpus
+        self.train_shape   = config.train_shape
+        self.test_shape    = config.test_shape
+        self.is_test       = config.is_test
 
-        self.parameter_saver = parameter_saver.Parameter_saver(
-            "2 dimension CNN")
-        self.parameter_saver.add_parameter("batch_size", self.batch_size)
-        self.parameter_saver.add_parameter("learning_rate", self.learning_rate)
-        self.parameter_saver.add_parameter("optimizer", "adam")
-        self.parameter_saver.add_parameter("loss_function", "l2_loss")
-        self.parameter_saver.add_parameter("log_dir", self.log_dir)
-        self.parameter_saver.add_parameter("num_gpu", self.num_gpus)
-        self.parameter_saver.add_parameter(
-            "description", "new taipei data")
+        if self.is_test == False:
+            self.parameter_saver = parameter_saver.Parameter_saver(
+                "2 dimension CNN")
+            self.parameter_saver.add_parameter("batch_size", self.batch_size)
+            self.parameter_saver.add_parameter("learning_rate", self.learning_rate)
+            self.parameter_saver.add_parameter("optimizer", "adam")
+            self.parameter_saver.add_parameter("loss_function", "l2_loss")
+            self.parameter_saver.add_parameter("log_dir", self.log_dir)
+            self.parameter_saver.add_parameter("num_gpu", self.num_gpus)
+            self.parameter_saver.add_parameter("train_shape", self.train_shape)
+            self.parameter_saver.add_parameter("test_shape", self.test_shape)
 
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 101, 12, 5], name='input_data')
+            None, self.train_shape[1], self.train_shape[2], self.train_shape[3]], name='input_data')
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, 29], name='label_data')
+            None, self.test_shape[1]], name='label_data')
 
         optimizer = tf.train.AdamOptimizer(
             learning_rate=self.learning_rate)
@@ -96,7 +100,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv1:", conv1)
-            self.parameter_saver.add_layer("conv1", {"filter": 64, "kernel_size": [
+            if self.is_test == False:
+                self.parameter_saver.add_layer("conv1", {"filter": 64, "kernel_size": [
                                            3, 3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv1_2') as scope:
@@ -109,7 +114,8 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             print("conv1_2:", conv1_2)
-            self.parameter_saver.add_layer("conv1_2", {"filter": 64, "kernel_size": [
+            if self.is_test == False:
+                self.parameter_saver.add_layer("conv1_2", {"filter": 64, "kernel_size": [
                                            3, 3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv2') as scope:
@@ -122,7 +128,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv2:", conv2)
-            self.parameter_saver.add_layer("conv2", {"filter": 128, "kernel_size": [
+            if self.is_test == False:
+                self.parameter_saver.add_layer("conv2", {"filter": 128, "kernel_size": [
                                            3, 3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv3') as scope:
@@ -135,7 +142,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv3:", conv3)
-            self.parameter_saver.add_layer("conv3", {"filter": 128, "kernel_size": [
+            if self.is_test == False:
+                self.parameter_saver.add_layer("conv3", {"filter": 128, "kernel_size": [
                                            3, 3], "stride": 1, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv4') as scope:
@@ -148,7 +156,8 @@ class TFPModel(object):
                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
                                      name=scope.name, reuse=scope.reuse)
             print("conv4:", conv4)
-            self.parameter_saver.add_layer("conv4", {"filter": 256, "kernel_size": [
+            if self.is_test == False:
+                self.parameter_saver.add_layer("conv4", {"filter": 256, "kernel_size": [
                                            3, 3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('conv4_2') as scope:
@@ -161,7 +170,8 @@ class TFPModel(object):
                                        kernel_initializer=kernel_init, bias_initializer=bias_init,
                                        name=scope.name, reuse=scope.reuse)
             print("conv4_2:", conv4_2)
-            self.parameter_saver.add_layer("conv4_2", {"filter": 256, "kernel_size": [
+            if self.is_test == False:
+                self.parameter_saver.add_layer("conv4_2", {"filter": 256, "kernel_size": [
                                            3, 3], "stride": 2, "padding": "same", "activation": "relu"})
 
         with tf.variable_scope('fully1') as scope:
@@ -177,7 +187,8 @@ class TFPModel(object):
                                                        biases_initializer=bias_init,
                                                        scope=scope, reuse=scope.reuse)
             print("fully1:", fully1)
-            self.parameter_saver.add_layer(
+            if self.is_test == False:
+                self.parameter_saver.add_layer(
                 "fully1", {"inputs": "flat", "num_outputs": 1024, "activation": "relu"})
 
         with tf.variable_scope('fully2') as scope:
@@ -186,16 +197,18 @@ class TFPModel(object):
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             fully2 = tf.contrib.layers.fully_connected(fully1,
-                                                       29,
+                                                       self.test_shape[1],
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
                                                        biases_initializer=bias_init,
                                                        scope=scope, reuse=scope.reuse)
             print("fully2:", fully2)
-            self.parameter_saver.add_layer(
+            if self.is_test == False:
+                self.parameter_saver.add_layer(
                 "fully2", {"inputs": "fully1", "num_outputs": 29, "activation": "relu"})
 
-        self.parameter_saver.save()
+        if self.is_test == False:
+            self.parameter_saver.save()
         return fully2
 
     def loss_function(self, logits, labels):

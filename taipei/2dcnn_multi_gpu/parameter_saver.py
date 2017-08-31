@@ -96,14 +96,18 @@ class Training_loss_saver(object):
         with open(self.config_filename, 'w') as fp:
             json.dump(self.config, fp)
 
-    def add_loss(self, step, train_loss, test_loss):
+    def add_loss(self, step, train_loss, each_train_loss, test_loss, each_test_loss):
         """
         Param:
             train_loss: the training loss
             test_loss: the testing loss
         """
         # self.config[self.index]["loss"].append([step, train_loss, test_loss])
-        self.loss_list["loss"].append([step, train_loss, test_loss])
+        self.loss_list["loss"].append( {"step"       : step, 
+                                        "train_loss" : train_loss,
+                                        "each_train_loss" : each_train_loss,
+                                        "test_loss"  : test_loss,
+                                        "each_test_loss" : each_test_loss})
 
     def save(self):
         """

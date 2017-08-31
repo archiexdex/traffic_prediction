@@ -85,8 +85,8 @@ def main(_):
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :]
         test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]
-        train_label = np.load(FLAGS.data_dir + FLAGS.train_label)
-        test_label = np.load(FLAGS.data_dir + FLAGS.test_label)
+        train_label = np.load(FLAGS.data_dir + FLAGS.train_label)[:, :, 2]
+        test_label = np.load(FLAGS.data_dir + FLAGS.test_label)[:, :, 2]
         # number of batches
         train_num_batch = train_data.shape[0] // FLAGS.batch_size
         test_num_batch = test_data.shape[0] // FLAGS.batch_size
@@ -197,7 +197,9 @@ def main(_):
                 # save the loss
                 loss_saver.add_loss(global_ephoch,
                                     train_loss_sum / train_num_batch,
-                                    test_loss_sum / test_num_batch)
+                                    each_vd_losses_mean.tolist(),
+                                    test_loss_sum / test_num_batch,
+                                    test_each_vd_losses_mean.tolist() )
                 loss_saver.save()
 
 

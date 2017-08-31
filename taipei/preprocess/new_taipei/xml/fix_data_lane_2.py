@@ -17,7 +17,7 @@ import numpy as np
 # choose 1 or 5 to fix different mode data
 mode = 5
 time_padding = 30
-is_allow_offset = 0
+is_allow_offset = 1
 # 1 means time = mode * 1 e.g. long_period = 1 and mode = 5 means if there are more than 5 minutes data be [0, 0, 0], we will mask it
 long_period = 12
 # 2015/12/01 00:00:00 ~ 2017/07/31 23:55:00

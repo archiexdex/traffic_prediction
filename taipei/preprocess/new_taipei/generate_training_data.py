@@ -97,17 +97,26 @@ def main():
 
     input_organized_data = []
     label_organized_data = []
+    label_mask_organized_data = []
     for i in range(train_data.shape[1] - 12):
 
         train = np.argwhere(train_mask[:, i:i + 12] == 1)
         label = np.argwhere(label_mask[:, i + 12:i + 13] == 1)
 
+        tmp = label_mask[:, i + 12]
+        if len(train) != 0:
+            tmp |= 1
+        train = []
+        label = []
+
         if len(train) == 0 and len(label) == 0:
             input_organized_data.append(train_data[:, i:i + 12, :])
-            label_organized_data.append(label_data[:, i + 12, 2])
+            label_organized_data.append(label_data[:, i + 12, :])
+            label_mask_organized_data.append(tmp)
 
     input_organized_data = np.array(input_organized_data)
     label_organized_data = np.array(label_organized_data)
+    label_mask_organized_data = np.array(label_mask_organized_data)
 
     print("total data shape")
     print(input_organized_data.shape)
@@ -119,19 +128,25 @@ def main():
     del label_mask
 
     # split data into 9:1 as num_train_data:num_test_data
-    train_data, test_data = np.split(
-        input_organized_data, [input_organized_data.shape[0] * 9 // 10])
+    train_data, test_data, _ = np.split(
+        input_organized_data, [input_organized_data.shape[0] * 8 // 10, input_organized_data.shape[0] * 9 // 10])
 
     np.save(DATA_PATH + 'train_data.npy', train_data)
     np.save(DATA_PATH + 'test_data.npy', test_data)
     print(train_data.shape)
     print(test_data.shape)
     print('data saved')
-    train_label, test_label = np.split(
-        label_organized_data, [label_organized_data.shape[0] * 9 // 10])
+    train_label, test_label, _ = np.split(
+        label_organized_data, [label_organized_data.shape[0] * 8 // 10, label_organized_data.shape[0] * 9 // 10])
+    _, test_mask, _ = np.split(
+        label_mask_organized_data, [label_mask_organized_data.shape[0] * 8 // 10, label_mask_organized_data.shape[0] * 9 // 10])
+
+    # change time
+    test_label[:, :, 0] = test_label[:, :, 0] * 300 + START_TIME   
 
     np.save(DATA_PATH + 'train_label.npy', train_label)
     np.save(DATA_PATH + 'test_label.npy', test_label)
+    np.save(DATA_PATH + 'test_mask.npy', test_mask)
 
     print(train_label.shape)
     print(test_label.shape)

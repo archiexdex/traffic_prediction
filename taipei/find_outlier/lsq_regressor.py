@@ -25,12 +25,16 @@ import pandas as pd
 from scipy.optimize import least_squares
 
 # FLAGs
+DRAW_VD_MODE = True
 OUTLIERS_THRSHOLD = 2
 
 # PATH
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/fix_data_group/'
 MASK_SAVED_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/mask_outlier/'
-FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/AREA_2/'
+FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/NEW_AREA/'
+
+# DRAW VD
+FILE_NAMES = ['VQGFY01_1', 'VPJFZ00_1', 'VMUGG20_0']
 
 
 def generate_data_on_plane(weights, inputs):
@@ -129,14 +133,22 @@ def lsq_regressor(raw_data, vd_name, if_vis=False, outlier_mask=None):
         weight: float, shape=[6,]
         losses: float, shape=[nums_data,]
     """
-    density = raw_data[:, 1]
+    target_data=[]
+    if outlier_mask is not None:
+        for i, is_outlier in enumerate(outlier_mask):
+            if not is_outlier:
+                target_data.append(raw_data[i])
+    else:
+        target_data = raw_data
+    target_data = np.array(target_data)
+    density = target_data[:, 1]
     # normalization
     if np.std(density) == 0.0:
         density = np.zeros_like(density)
     else:
         density = np.divide(density - np.mean(density), np.std(density))
-    flow = raw_data[:, 2]
-    speed = raw_data[:, 3]
+    flow = target_data[:, 2]
+    speed = target_data[:, 3]
     # normalization
     if np.std(speed) == 0.0:
         speed = np.zeros_like(speed)
@@ -163,40 +175,62 @@ def lsq_regressor(raw_data, vd_name, if_vis=False, outlier_mask=None):
 
     # visulization in 3D
     if if_vis:
-        draw_data(vd_name, density, flow, speed, weights)
+        if outlier_mask is not None:
+            draw_data(vd_name + '_without_outliers', density, flow, speed, weights)
+        else:
+            draw_data(vd_name + '_with_outliers', density, flow, speed, weights)
 
     return weights, losses.tolist()
 
 
 def main():
-    all_losses_dict = {}
-    for path, _, file_names in os.walk(DATA_PATH):
-        for file_name in file_names:
-            file_path = os.path.join(path, file_name)
+
+    # draw specific VD
+    if DRAW_VD_MODE:
+        # with ourliers
+        for file_name in FILE_NAMES:
+            file_path = os.path.join(DATA_PATH, file_name + '.npy')
             vd_data = np.load(file_path)
-            _, losses = lsq_regressor(
-                vd_data, file_name[:-4], if_vis=False)  # [:-4]: remove '.npy'
-            all_losses_dict[file_name] = losses
-    all_losses_np = np.array(list(all_losses_dict.values()))
-    print('all_losses_np.shape', all_losses_np.shape)
-    print('all_losses_np.dtype', all_losses_np.dtype)
-    mean = np.mean(all_losses_np)
-    stddev = np.std(all_losses_np)
-    num_outliers = np.sum(all_losses_np > (mean + OUTLIERS_THRSHOLD * stddev)) + \
-        np.sum(all_losses_np < (mean - OUTLIERS_THRSHOLD * stddev))
+            _, _ = lsq_regressor(
+                vd_data, file_name, if_vis=True)  # [:-4]: remove '.npy'
+        
+        # without ourliers
+        for file_name in FILE_NAMES:
+            file_path = os.path.join(DATA_PATH, file_name + '.npy')
+            outlier_mask_path = os.path.join(MASK_SAVED_PATH, file_name + '.npy')
+            vd_data = np.load(file_path)
+            outlier_mask = np.load(outlier_mask_path)
+            _, _ = lsq_regressor(
+                vd_data, file_name, if_vis=True, outlier_mask=outlier_mask)  # [:-4]: remove '.npy'
+    else:
+        all_losses_dict = {}
+        for path, _, file_names in os.walk(DATA_PATH):
+            for file_name in file_names:
+                file_path = os.path.join(path, file_name)
+                vd_data = np.load(file_path)
+                _, losses = lsq_regressor(
+                    vd_data, file_name[:-4], if_vis=False)  # [:-4]: remove '.npy'
+                all_losses_dict[file_name] = losses
+        all_losses_np = np.array(list(all_losses_dict.values()))
+        print('all_losses_np.shape', all_losses_np.shape)
+        print('all_losses_np.dtype', all_losses_np.dtype)
+        mean = np.mean(all_losses_np)
+        stddev = np.std(all_losses_np)
+        num_outliers = np.sum(all_losses_np > (mean + OUTLIERS_THRSHOLD * stddev)) + \
+            np.sum(all_losses_np < (mean - OUTLIERS_THRSHOLD * stddev))
 
-    for vd_name in all_losses_dict:
-        outlier_mask = np.logical_or(all_losses_dict[vd_name] > (
-            mean + OUTLIERS_THRSHOLD * stddev),  all_losses_dict[vd_name] < (mean - OUTLIERS_THRSHOLD * stddev))
-        np.save(os.path.join(MASK_SAVED_PATH, vd_name), outlier_mask)
-        print('%s Saved' % (os.path.join(MASK_SAVED_PATH, vd_name)))
+        for vd_name in all_losses_dict:
+            outlier_mask = np.logical_or(all_losses_dict[vd_name] > (
+                mean + OUTLIERS_THRSHOLD * stddev),  all_losses_dict[vd_name] < (mean - OUTLIERS_THRSHOLD * stddev))
+            np.save(os.path.join(MASK_SAVED_PATH, vd_name), outlier_mask)
+            print('%s Saved' % (os.path.join(MASK_SAVED_PATH, vd_name)))
 
-    # log
-    print('mean:', mean)
-    print('stddev:', stddev)
-    print('num_outliers:', num_outliers)
-    print('removed_rate: %f %%' % (100 * num_outliers /
-                                   (all_losses_np.shape[0] * all_losses_np.shape[1])))
+        # log
+        print('mean:', mean)
+        print('stddev:', stddev)
+        print('num_outliers:', num_outliers)
+        print('removed_rate: %f %%' % (100 * num_outliers /
+                                       (all_losses_np.shape[0] * all_losses_np.shape[1])))
 
 
 if __name__ == '__main__':

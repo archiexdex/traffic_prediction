@@ -29,7 +29,7 @@ tf.app.flags.DEFINE_string("train_label", "train_label.npy",
                            "training label data name")
 tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
-tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/',
+tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', '',
                            "training checkpoints directory")
@@ -57,7 +57,7 @@ class ModelConfig(object):
     testing config
     """
 
-    def __init__(self):
+    def __init__(self, train_shape, test_shape):
         self.data_dir = FLAGS.data_dir
         self.checkpoints_dir = FLAGS.checkpoints_dir
         self.log_dir = FLAGS.log_dir
@@ -67,6 +67,9 @@ class ModelConfig(object):
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
         self.num_gpus = FLAGS.num_gpus
+        self.train_shape = train_shape
+        self.test_shape = test_shape
+        self.is_test = True
 
     def show(self):
         print("data_dir:", self.data_dir)
@@ -78,59 +81,82 @@ class ModelConfig(object):
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
         print("num_gpus:", self.num_gpus)
+        print("train_shape:", self.train_shape)
+        print("test_shape:", self.test_shape)
+        print("is_test:", self.is_test)
+
 
 def plot_result_cmp_label(results, labels):
     """
     """
-    for i in range(results.shape[1]): # for each target vd
+    test_mask = np.load(FLAGS.data_dir + 'test_mask.npy')
+    for i in range(results.shape[1]):  # for each target vd
         # Add data
         target_vd_result = results[:, i]
-        target_vd_label = labels[:, i]
-        # time_list = []
-        # for _, v in enumerate(target_vd_timestamp):
-        #     time_list.append(datetime.datetime.fromtimestamp(
-        #         v).strftime("%Y-%m-%d %H:%M:%S"))
+        target_vd_result_mask = test_mask[:, i] * 200
+        # target_vd_result_mask = []
+        # for idx, v in enumerate(results[:, i]):
+        #     print(test_mask[idx, i])
+        #     if test_mask[idx, i] == 1:
+        #         target_vd_result_mask.append(0.0)
+        #     else:
+        #         target_vd_result_mask.append(v)
+        target_vd_label = labels[:, i, 2]  # flow only
+        target_vd_timestamp = labels[:, i, 0]  # timestamp
+        time_list = []
+        for _, v in enumerate(target_vd_timestamp):
+            time_list.append(datetime.datetime.fromtimestamp(
+                v).strftime("%Y-%m-%d %H:%M:%S"))
 
         # Create and style traces
         trace_flow = go.Scatter(
-            # x=time_list,
+            x=time_list,
             y=target_vd_result,
             name='Flow',
             line=dict(
                 color=('rgb(24, 12, 205)'),
                 width=3)
         )
-        trace_label= go.Scatter(
-            # x=time_list,
+        trace_flow_mask = go.Scatter(
+            x=time_list,
+            y=target_vd_result_mask,
+            name='Flow Mask',
+            line=dict(
+                color=('rgb(205, 24, 12)'),
+                width=3)
+        )
+        trace_label = go.Scatter(
+            x=time_list,
             y=target_vd_label,
             name='Label',
             line=dict(
                 color=('rgb(24, 205, 12)'),
                 width=3)
         )
-        data = [trace_flow, trace_label]
+        data = [trace_flow, trace_flow_mask, trace_label]
 
         # Edit the layout
         layout = dict(title="VD_ID: %d" % i,
-                    xaxis=dict(title='Time'),
-                    yaxis=dict(title='Value'),
-                    )
+                      xaxis=dict(title='Time'),
+                      yaxis=dict(title='Value'),
+                      )
 
         fig = dict(data=data, layout=layout)
         if DRAW_ONLINE_FLAG:
             py.plot(fig, filename=FOLDER_PATH + "VD_ID: %d.html" % i)
         else:
-            plotly.offline.plot(fig, filename=FOLDER_PATH + "VD_ID: %d.html" % i)
+            plotly.offline.plot(
+                fig, filename=FOLDER_PATH + "VD_ID: %d.html" % i)
 
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
-        # config setting
-        config = ModelConfig()
-        config.show()
         # load data
-        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]
+        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)
         test_label = np.load(FLAGS.data_dir + FLAGS.test_label)
+        # config setting
+        config = ModelConfig(test_data.shape, test_label.shape)
+        config.show()
         # number of batches
         test_num_batch = test_data.shape[0] // FLAGS.batch_size
         print('test_num_batch:', test_num_batch)
@@ -138,6 +164,8 @@ def main(_):
         model = model_2dcnn.TFPModel(config, graph=graph)
         # Add an op to initialize the variables.
         init = tf.global_variables_initializer()
+        # Add ops to save and restore all the variables.
+        saver = tf.train.Saver()
 
         # Session
         with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
@@ -167,7 +195,7 @@ def main(_):
                 test_data_batch = test_data[batch_idx:batch_idx +
                                             FLAGS.batch_size]
                 test_label_batch = test_label[batch_idx:batch_idx +
-                                              FLAGS.batch_size]
+                                              FLAGS.batch_size, :, 2]  # flow only
                 test_each_vd_losses, test_losses = model.compute_loss(
                     sess, test_data_batch, test_label_batch)
                 test_each_vd_losses_sum.append(test_each_vd_losses)
@@ -178,7 +206,7 @@ def main(_):
             print("test mean loss: %f" % (test_loss_sum / test_num_batch))
             print("each test vd's mean loss:")
             print(test_each_vd_losses_mean)
-            
+
             plot_result_cmp_label(result_all, test_label)
 
 

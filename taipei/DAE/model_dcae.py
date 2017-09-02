@@ -10,9 +10,11 @@ class DCAEModel(object):
     """
     Model of Denoising Convolutional AutoEncoder for data imputation
     # TODO list
-        * normalization
         * weights/ bias initilizer
         * filter amount
+        * multi-gpu
+        * self.is_training 
+        * predict and visulize
     """
 
     def __init__(self, config, graph):
@@ -38,14 +40,13 @@ class DCAEModel(object):
         self.log_dir = config.log_dir
         self.learning_rate = config.learning_rate
         self.input_shape = config.input_shape
-        # TODO self.is_training = config.is_training
-        # step
+        # steps
         self.global_step = tf.train.get_or_create_global_step(graph=graph)
         # data
-        self.raw_data = tf.placeholder(dtype=tf.float32, shape=[
-            self.batch_size, self.input_shape[1], self.input_shape[2], self.input_shape[3]], name='raw_data')
         self.corrupt_data = tf.placeholder(dtype=tf.float32, shape=[
             self.batch_size, self.input_shape[1], self.input_shape[2], self.input_shape[3]], name='corrupt_data')
+        self.raw_data = tf.placeholder(dtype=tf.float32, shape=[
+            self.batch_size, self.input_shape[1], self.input_shape[2], 3], name='raw_data')
         # model
         self.logits = self.inference(
             self.corrupt_data, self.filter_numbers, self.filter_strides)
@@ -109,7 +110,10 @@ class DCAEModel(object):
             with tf.variable_scope('deconv' + str(layer_id)) as scope:
                 # shape
                 in_filter_amount = current_input.get_shape().as_list()[3]
-                out_filter_amount = layer_shape[3]
+                if layer_id == len(shapes_list)-1:
+                    out_filter_amount = 3 # only regress 3 dims as [d, f, s] 
+                else:
+                    out_filter_amount = layer_shape[3]               
                 # init
                 kernel_init = tf.truncated_normal_initializer(
                     mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
@@ -123,10 +127,9 @@ class DCAEModel(object):
                 stide = filter_strides[layer_id]
                 output = lrelu(
                     tf.add(tf.nn.conv2d_transpose(
-                        value=current_input, filter=W, output_shape=tf.stack([layer_shape[0], layer_shape[1], layer_shape[2], layer_shape[3]]), strides=[1, stide, stide, 1], padding='SAME'), b))
+                        value=current_input, filter=W, output_shape=tf.stack([layer_shape[0], layer_shape[1], layer_shape[2], out_filter_amount]), strides=[1, stide, stide, 1], padding='SAME'), b))
                 current_input = output
                 print(scope.name, output)
-        # TODO only regress 3 dims as d, f, s
 
         return output
 
@@ -144,16 +147,19 @@ class DCAEModel(object):
         """
         TODO
         """
-        feed_dict = {self.raw_data: inputs, self.corrupt_data: labels}
-        loss, global_steps, _ = sess.run(
-            [self.loss, self.global_step, self.train_op], feed_dict=feed_dict)
+        feed_dict = {self.corrupt_data: inputs, self.raw_data: labels}
+        summary, loss, global_steps, _ = sess.run(
+            [self.merged_op, self.loss, self.global_step, self.train_op], feed_dict=feed_dict)
+        # write summary
+        self.train_summary_writer.add_summary(
+            summary, global_step=global_steps)
         return loss, global_steps
 
     def compute_loss(self, sess, inputs, labels):
         """
         TODO
         """
-        feed_dict = {self.raw_data: inputs, self.corrupt_data: labels}
+        feed_dict = {self.corrupt_data: inputs, self.raw_data: labels}
         loss = sess.run(self.loss, feed_dict=feed_dict)
         return loss
 

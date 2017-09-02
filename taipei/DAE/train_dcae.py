@@ -17,14 +17,14 @@ tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
                            "validation data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v5/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v5/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
 # data augmentation and corruption
-tf.app.flags.DEFINE_integer('aug_ratio', 2,
+tf.app.flags.DEFINE_integer('aug_ratio', 4,
                             "the ratio of data augmentation")
 tf.app.flags.DEFINE_integer('corrupt_amount', 100,
                             "the amount of corrupted data")
@@ -42,6 +42,14 @@ tf.app.flags.DEFINE_float('learning_rate', 0.001,
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
 
+def data_normalization(data):
+    # normalize each dims [t, d, f, s, w]
+    for i in range(5):
+        temp_mean = np.mean(data[:, :, :, i])
+        temp_std = np.std(data[:, :, :, i])
+        data[:, :, :, i] = (data[:, :, :, i] - temp_mean) / temp_std
+        print(i, temp_mean, temp_std)
+    return data
 
 def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
     print('all_data.shape:', all_data.shape)
@@ -50,7 +58,7 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
     for one_data in all_data:
         aug_data.append([one_data for _ in range(aug_ratio)])
     aug_data = np.concatenate(aug_data, axis=0)
-    raw_data = np.array(aug_data)
+    raw_data = np.array(aug_data[:, :, :,1:4]) # only [d, f, s]
     print('raw_data.shape:', raw_data.shape)
     # randomly corrupt target data
     for one_data in aug_data:
@@ -112,7 +120,9 @@ def main(_):
             train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
         input_valid, label_valid = generate_input_and_label(
             valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
-        # TODO data normalization
+        # data normalization
+        input_train = data_normalization(input_train)
+        input_valid = data_normalization(input_valid)
         # number of batches
         train_num_batch = input_train.shape[0] // FLAGS.batch_size
         valid_num_batch = input_valid.shape[0] // FLAGS.batch_size

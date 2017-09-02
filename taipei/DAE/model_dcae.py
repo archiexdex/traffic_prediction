@@ -7,8 +7,7 @@ import tensorflow as tf
 
 
 class DCAEModel(object):
-    """
-    Model of Denoising Convolutional AutoEncoder for data imputation
+    """ Model of Denoising Convolutional AutoEncoder for data imputation
     # TODO list
         * weights/ bias initilizer
         * filter amount
@@ -18,20 +17,18 @@ class DCAEModel(object):
     """
 
     def __init__(self, config, graph):
-        """build up the whole tf graph
-        TODO
+        """ build up the whole tensorflow computational graph
         Params
         ------
         config : class, hyper-perameters
-            * filter_numbers : list
-            * filter_strides : list
-            * batch_size : 
-            * log_dir :
-            * learning_rate : 
-            * input_shape : 
-            * label_shape : 
-
+            * filter_numbers : int, list, the number of filters for each conv and decov in reversed order
+            * filter_strides : int, list, the value of stride for each conv and decov in reversed order
+            * batch_size : int, mini batch size
+            * log_dir : string, the path to save training summary
+            * learning_rate : float, adam's learning rate
+            * input_shape : int, list, e.g. [?, nums_VD, nums_Interval, nums_features]
         graph : tensorflow default graph
+            for summary writer and __global_step init
         """
         # hyper-parameters
         self.filter_numbers = config.filter_numbers
@@ -41,43 +38,52 @@ class DCAEModel(object):
         self.learning_rate = config.learning_rate
         self.input_shape = config.input_shape
         # steps
-        self.global_step = tf.train.get_or_create_global_step(graph=graph)
+        self.__global_step = tf.train.get_or_create_global_step(graph=graph)
         # data
-        self.corrupt_data = tf.placeholder(dtype=tf.float32, shape=[
+        self.__corrupt_data = tf.placeholder(dtype=tf.float32, shape=[
             self.batch_size, self.input_shape[1], self.input_shape[2], self.input_shape[3]], name='corrupt_data')
-        self.raw_data = tf.placeholder(dtype=tf.float32, shape=[
+        self.__raw_data = tf.placeholder(dtype=tf.float32, shape=[
             self.batch_size, self.input_shape[1], self.input_shape[2], 3], name='raw_data')
         # model
-        self.logits = self.inference(
-            self.corrupt_data, self.filter_numbers, self.filter_strides)
-        self.loss = self.loss_function(
-            self.logits, self.raw_data)
+        self.__logits = self.__inference(
+            self.__corrupt_data, self.filter_numbers, self.filter_strides)
+        self.__loss = self.__loss_function(
+            self.__logits, self.__raw_data)
         # add to summary
-        tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('loss', self.__loss)
         optimizer = tf.train.AdamOptimizer(
             learning_rate=self.learning_rate)
         # print(tf.trainable_variables())
-        self.train_op = optimizer.minimize(
-            self.loss, global_step=self.global_step)
+        self.__train_op = optimizer.minimize(
+            self.__loss, global_step=self.__global_step)
 
         # summary
-        self.merged_op = tf.summary.merge_all()
+        self.__merged_op = tf.summary.merge_all()
         # summary writer
         self.train_summary_writer = tf.summary.FileWriter(
             self.log_dir + 'train', graph=graph)
 
-    def inference(self, corrupt_data, filter_numbers, filter_strides):
-        """
-        TODO
-        filter_numbers : [32, 64, 128]
-        filter_strides : [1, 2, 2]
+    def __inference(self, __corrupt_data, filter_numbers, filter_strides):
+        """ construct the AutoEncoder model
+        Params
+        ------
+        __corrupt_data : placeholder, shape=[batch_size, nums_vd, nums_interval, features]
+            get by randomly corrupting raw data
+        filter_numbers : int, list
+            the number of filters for each conv and decov in reversed order. e.g. [32, 64, 128]
+        filter_strides : int, list, 
+            the value of stride for each conv and decov in reversed order. e.g. [1, 2, 2]
+        
+        Return
+        ------
+        output : the result of AutoEndoer, shape is same as '__corrupt_data'
         """
         def lrelu(x, alpha=0.3):
             return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
-        print("corrupt_data:", corrupt_data)
+        print("__corrupt_data:", __corrupt_data)
         shapes_list = []
         # encoder
-        current_input = corrupt_data
+        current_input = __corrupt_data
         for layer_id, out_filter_amount in enumerate(filter_numbers):
             with tf.variable_scope('conv' + str(layer_id)) as scope:
                 # shape
@@ -133,35 +139,78 @@ class DCAEModel(object):
 
         return output
 
-    def loss_function(self, logits, labels):
-        """
-        TODO
+    def __loss_function(self, __logits, labels):
+        """ l2 function (mean square error)
+        Params
+        ------
+        __logits : tensor, from __inference()
+        labels : placeholder, raw data
+
+        Return
+        ------
+        l2_mean_loss : tensor 
+            MSE of one batch
         """
         with tf.name_scope('l2_loss'):
-            vd_losses = tf.squared_difference(logits, labels)
+            vd_losses = tf.squared_difference(__logits, labels)
             l2_mean_loss = tf.reduce_mean(vd_losses)
         print('l2_mean_loss:', l2_mean_loss)
         return l2_mean_loss
 
     def step(self, sess, inputs, labels):
+        """ train one batch and update one time
+        Params
+        ------
+        sess : tf.Session()
+        inputs: corrupted data, shape=[batch_size, nums_vd, nums_interval, features]
+        labels: raw data, shape=[batch_size, nums_vd, nums_interval, features]
+
+        Return
+        ------
+        loss : float 
+            MSE of one batch
+        global_steps : 
+            the number of batches have been trained
         """
-        TODO
-        """
-        feed_dict = {self.corrupt_data: inputs, self.raw_data: labels}
+        feed_dict = {self.__corrupt_data: inputs, self.__raw_data: labels}
         summary, loss, global_steps, _ = sess.run(
-            [self.merged_op, self.loss, self.global_step, self.train_op], feed_dict=feed_dict)
+            [self.__merged_op, self.__loss, self.__global_step, self.__train_op], feed_dict=feed_dict)
         # write summary
         self.train_summary_writer.add_summary(
             summary, global_step=global_steps)
         return loss, global_steps
 
     def compute_loss(self, sess, inputs, labels):
+        """ compute loss
+        Params
+        ------
+        sess : tf.Session()
+        inputs: corrupted data, shape=[batch_size, nums_vd, nums_interval, features]
+        labels: raw data, shape=[batch_size, nums_vd, nums_interval, features]
+
+        Return
+        ------
+        loss : float 
+            MSE of one batch
         """
-        TODO
-        """
-        feed_dict = {self.corrupt_data: inputs, self.raw_data: labels}
-        loss = sess.run(self.loss, feed_dict=feed_dict)
+        feed_dict = {self.__corrupt_data: inputs, self.__raw_data: labels}
+        loss = sess.run(self.__loss, feed_dict=feed_dict)
         return loss
+
+    def predict(self, sess, inputs):
+        """ recover the inputs (corrupted data)
+        Params
+        ------
+        sess : tf.Session()
+        inputs: corrupted data, shape=[batch_size, nums_vd, nums_interval, features]
+        
+        Return
+        ------
+        result : raw data, shape=[batch_size, nums_vd, nums_interval, features]
+        """
+        feed_dict = {self.__corrupt_data: inputs}
+        result = sess.run(self.__logits, feed_dict=feed_dict)
+        return result
 
 
 class TestingConfig(object):
@@ -175,7 +224,7 @@ class TestingConfig(object):
         self.batch_size = 256
         self.total_epoches = 10
         self.learning_rate = 0.001
-        self.log_dir = "FLAGS.log_dir/"
+        self.log_dir = "test_log_dir/"
         self.input_shape = [256, 100, 12, 5]
 
 
@@ -185,7 +234,7 @@ def test():
         model = DCAEModel(config, graph=g)
         # train
         X = np.zeros(shape=[256, 100, 12, 5])
-        Y = np.zeros(shape=[256, 100, 12, 5])
+        Y = np.zeros(shape=[256, 100, 12, 3])
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             for i in range(config.total_epoches):

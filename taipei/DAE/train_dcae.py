@@ -17,9 +17,9 @@ tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
                            "validation data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v5/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v6/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v5/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v6/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")

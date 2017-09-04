@@ -23,8 +23,7 @@ FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/data_vis/NEW_VDS/
 
 DRAW_ONLINE_FLAG = False
 
-# VD_NAMES = ["VN9PZ60_0", "VN9PZ60_1","VMEKQ41_0", "VMEKQ41_1", "VL7PX00_0", "VL7PX00_1", "V1220E0_0", "V1220E0_1"]  # 'vdname_groupid'
-VD_NAMES = ["VP8GI20_0"]  # 'vdname_groupid'
+VD_NAMES = ['VMUGG20_0']
 START_DAYS = [1]
 DURATION = 600
 
@@ -45,9 +44,9 @@ def plot_duration(vd_name, start_day, duration):
     # Add data
     start_week_day = target_vd_data[140, 4]
     start_date = datetime.datetime.fromtimestamp(
-        target_vd_data[140, 4]).strftime("%Y-%m-%d")
+        target_vd_data[140, 0]).strftime("%Y-%m-%d")
     end_date = datetime.datetime.fromtimestamp(
-        target_vd_data[-140, 4]).strftime("%Y-%m-%d")
+        target_vd_data[-140, 0]).strftime("%Y-%m-%d")
     target_vd_density = target_vd_data[:, 1]
     target_vd_flow = target_vd_data[:, 2]
     target_vd_speed = target_vd_data[:, 3]

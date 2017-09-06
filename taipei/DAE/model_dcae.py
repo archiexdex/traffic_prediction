@@ -47,7 +47,7 @@ class DCAEModel(object):
         # model
         self.__logits = self.__inference(
             self.__corrupt_data, self.filter_numbers, self.filter_strides)
-        self.__loss = self.__loss_function(
+        self.__loss, self.__sep_loss = self.__loss_function(
             self.__logits, self.__raw_data)
         # add to summary
         tf.summary.scalar('loss', self.__loss)
@@ -73,7 +73,7 @@ class DCAEModel(object):
             the number of filters for each conv and decov in reversed order. e.g. [32, 64, 128]
         filter_strides : int, list, 
             the value of stride for each conv and decov in reversed order. e.g. [1, 2, 2]
-        
+
         Return
         ------
         output : the result of AutoEndoer, shape is same as '__corrupt_data'
@@ -116,10 +116,10 @@ class DCAEModel(object):
             with tf.variable_scope('deconv' + str(layer_id)) as scope:
                 # shape
                 in_filter_amount = current_input.get_shape().as_list()[3]
-                if layer_id == len(shapes_list)-1:
-                    out_filter_amount = 3 # only regress 3 dims as [d, f, s] 
+                if layer_id == len(shapes_list) - 1:
+                    out_filter_amount = 3  # only regress 3 dims as [d, f, s]
                 else:
-                    out_filter_amount = layer_shape[3]               
+                    out_filter_amount = layer_shape[3]
                 # init
                 kernel_init = tf.truncated_normal_initializer(
                     mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
@@ -150,12 +150,18 @@ class DCAEModel(object):
         ------
         l2_mean_loss : tensor 
             MSE of one batch
+        sep_mean_loss : tensor, shape = [batch_size, num_vds, num_intervals, 3]
+            the mean loss of each dimension (density, flow, speed)
+
         """
         with tf.name_scope('l2_loss'):
             vd_losses = tf.squared_difference(__logits, labels)
             l2_mean_loss = tf.reduce_mean(vd_losses)
+            sep_mean_loss = tf.reduce_mean(tf.reshape(vd_losses, shape=[
+                                           self.batch_size* self.input_shape[1] * self.input_shape[2], 3]), axis=0)
         print('l2_mean_loss:', l2_mean_loss)
-        return l2_mean_loss
+        print('sep_mean_loss:', sep_mean_loss)
+        return l2_mean_loss, sep_mean_loss
 
     def step(self, sess, inputs, labels):
         """ train one batch and update one time
@@ -169,16 +175,18 @@ class DCAEModel(object):
         ------
         loss : float 
             MSE of one batch
+        sep_loss : float, shape=[3]
+            MSE of each dimensions
         global_steps : 
             the number of batches have been trained
         """
         feed_dict = {self.__corrupt_data: inputs, self.__raw_data: labels}
-        summary, loss, global_steps, _ = sess.run(
-            [self.__merged_op, self.__loss, self.__global_step, self.__train_op], feed_dict=feed_dict)
+        summary, loss, sep_loss, global_steps, _ = sess.run(
+            [self.__merged_op, self.__loss, self.__sep_loss, self.__global_step, self.__train_op], feed_dict=feed_dict)
         # write summary
         self.train_summary_writer.add_summary(
             summary, global_step=global_steps)
-        return loss, global_steps
+        return loss, sep_loss, global_steps
 
     def compute_loss(self, sess, inputs, labels):
         """ compute loss
@@ -203,7 +211,7 @@ class DCAEModel(object):
         ------
         sess : tf.Session()
         inputs: corrupted data, shape=[batch_size, nums_vd, nums_interval, features]
-        
+
         Return
         ------
         result : raw data, shape=[batch_size, nums_vd, nums_interval, features]

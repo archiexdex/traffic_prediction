@@ -44,6 +44,7 @@ tf.app.flags.DEFINE_float('learning_rate', 0.001,
 
 def data_normalization(data):
     # normalize each dims [t, d, f, s, w]
+    # and dump each pair(mean, std) to json for testing 
     for i in range(5):
         temp_mean = np.mean(data[:, :, :, i])
         temp_std = np.std(data[:, :, :, i])
@@ -159,6 +160,7 @@ def main(_):
                 input_train = input_train[shuffled_indexes]
                 label_train = label_train[shuffled_indexes]
                 train_loss_sum = 0.0
+                train_sep_loss_sum = np.zeros(shape=[3], dtype=np.float)
                 for b in range(train_num_batch):
                     batch_idx = b * FLAGS.batch_size
                     # input, label
@@ -167,9 +169,10 @@ def main(_):
                     label_train_batch = label_train[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
                     # train one batch
-                    losses, global_step = model.step(
+                    losses, sep_loss, global_step = model.step(
                         sess, input_train_batch, label_train_batch)
                     train_loss_sum += losses
+                    train_sep_loss_sum += sep_loss
                 global_ephoch = int(global_step // train_num_batch)
 
                 # validation
@@ -193,6 +196,10 @@ def main(_):
                        train_loss_sum / train_num_batch,
                        valid_loss_sum / valid_num_batch,
                        (end_time - start_time) / train_num_batch))
+                print("%f density_loss, %f flow_loss, %f speed_loss" %
+                      (train_sep_loss_sum[0] / train_num_batch,
+                       train_sep_loss_sum[1] / train_num_batch,
+                       train_sep_loss_sum[2] / train_num_batch))
 
                 # train mean ephoch loss
                 train_scalar_summary = tf.Summary()

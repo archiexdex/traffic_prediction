@@ -3,29 +3,43 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import datetime
 import time
 import json
 import numpy as np
 import tensorflow as tf
 import model_dcae
+import plotly
+plotly.tools.set_credentials_file(
+    username="XDEX", api_key="GTWbfZgCXH6MQ1VOb9FO")
+
+import plotly.plotly as py
+import plotly.graph_objs as go
+
+DRAW_ONLINE_FLAG = False
+FOLDER_PATH = 'test/'
 
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
 tf.app.flags.DEFINE_string("train_data", "train_data.npy",
                            "training data name")
-tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
+tf.app.flags.DEFINE_string("test_data", "test_data.npy",
                            "validation data name")
+tf.app.flags.DEFINE_string("train_label", "train_label.npy",
+                           "training label data name")
+tf.app.flags.DEFINE_string("test_label", "test_label.npy",
+                           "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
                            "training checkpoints directory")
 tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
                            "summary directory")
-tf.app.flags.DEFINE_string('restore_path', None,
+tf.app.flags.DEFINE_string('restore_path', 'v1/checkpoints/model.ckpt-12800',
                            "path of saving model eg: checkpoints/model.ckpt-5")
 # data augmentation and corruption
-tf.app.flags.DEFINE_integer('aug_ratio', 4,
+tf.app.flags.DEFINE_integer('aug_ratio', 1,
                             "the ratio of data augmentation")
 tf.app.flags.DEFINE_integer('corrupt_amount', 100,
                             "the amount of corrupted data")
@@ -43,22 +57,22 @@ tf.app.flags.DEFINE_float('learning_rate', 0.001,
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
 
+
 def data_normalization(data, file_name):
     # normalize each dims [t, d, f, s, w]
     key = ["time", "density", "flow", "speed", "week"]
     norm = {}
-    with open("norm.json", 'r') as fp:
+    with open("norm.json", "r") as fp:
         norm = json.load(fp)
-    norm[file_name] = {}
     for i in range(5):
-        temp_mean = np.mean(data[:, :, :, i])
-        temp_std = np.std(data[:, :, :, i])
+        # temp_mean = np.mean(data[:, :, :, i])
+        # temp_std = np.std(data[:, :, :, i])
+        temp_mean = norm[file_name][key[i]][0]
+        temp_std = norm[file_name][key[i]][1]
         data[:, :, :, i] = (data[:, :, :, i] - temp_mean) / temp_std
         print(i, temp_mean, temp_std)
-        norm[file_name][key[i]] = [temp_mean, temp_std]
-    with open("norm.json", 'w') as fp:
-        json.dump(norm, fp)
     return data
+
 
 def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
     print('all_data.shape:', all_data.shape)
@@ -67,7 +81,7 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
     for one_data in all_data:
         aug_data.append([one_data for _ in range(aug_ratio)])
     aug_data = np.concatenate(aug_data, axis=0)
-    raw_data = np.array(aug_data[:, :, :,1:4]) # only [d, f, s]
+    raw_data = np.array(aug_data[:, :, :, 1:4])  # only [d, f, s]
     print('raw_data.shape:', raw_data.shape)
     # randomly corrupt target data
     for one_data in aug_data:
@@ -119,38 +133,83 @@ class TrainingConfig(object):
         print("learning_rate:", self.learning_rate)
 
 
+def plot_result_cmp_label(results, labels):
+    """
+    """
+    START_TIME = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
+    i = 50
+    vd = 67
+    while i < i+101:
+        # Add data
+        target_result_flow = results[i, vd, :, 2]
+        target_time_list = []
+        for k in labels[i, vd, :, 0]:
+            target_time_list.append(datetime.datetime.fromtimestamp(k * 300 + START_TIME).strftime("%Y-%m-%d %H:%M:%S"))
+        # target_time_list   = datetime.datetime.fromtimestamp(labels[i, vd, :, 0] * 300 + START_TIME).strftime("%Y-%m-%d %H:%M:%S")
+        target_label_flow  = labels[i, vd, :, 3]
+
+
+        # Create and style traces
+        trace_flow = go.Scatter(
+            x=target_time_list,
+            y=target_result_flow,
+            name='Flow',
+            line=dict(
+                color=('rgb(255, 0, 0)'),
+                width=3)
+        )
+        
+        trace_label = go.Scatter(
+            x=target_time_list,
+            y=target_label_flow,
+            name='Label',
+            line=dict(
+                color=('rgb(0, 255, 0)'),
+                width=3)
+        )
+        data = [trace_flow, trace_label]
+
+        
+        # Edit the layout
+        layout = dict(title="VD_ID_%d_DATA_ID_%d.html" % (vd, i),
+                      xaxis=dict(title='Time'),
+                      yaxis=dict(title='Value'),
+                      )
+
+        fig = dict(data=data, layout=layout)
+        if DRAW_ONLINE_FLAG:
+            py.plot(fig, filename=FOLDER_PATH + "VD_ID_%d_DATA_ID_%d.html" % (vd, i))
+        else:
+            plotly.offline.plot(
+                fig, filename=FOLDER_PATH + "VD_ID_%d_DATA_ID_%d.html" % (vd, i))
+
+        i += 1
+        input("!")
+
 def main(_):
     with tf.get_default_graph().as_default() as graph:
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
-        valid_data = np.load(FLAGS.data_dir + FLAGS.valid_data)
-        # generate raw_data and corrupt_data
-        input_train, label_train = generate_input_and_label(
+        # generate many pollute data and pure data
+        polluted_train_input, pure_train_input = generate_input_and_label(
             train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
-        input_valid, label_valid = generate_input_and_label(
-            valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
         # data normalization
-        input_train = data_normalization(input_train, "train")
-        input_valid = data_normalization(input_valid, "valid")
+        polluted_train_input = data_normalization(
+            polluted_train_input, "train")
+
         # number of batches
-        train_num_batch = input_train.shape[0] // FLAGS.batch_size
-        valid_num_batch = input_valid.shape[0] // FLAGS.batch_size
-        print(train_num_batch)
-        print(valid_num_batch)
+        train_num_batch = polluted_train_input.shape[0] // FLAGS.batch_size
+        print("train_batch:", train_num_batch)
         # config setting
         config = TrainingConfig(
-            FILTER_NUMBERS, FILTER_STRIDES, train_data.shape)
+            FILTER_NUMBERS, FILTER_STRIDES, polluted_train_input.shape)
         config.show()
         # model
         model = model_dcae.DCAEModel(config, graph=graph)
+        # Add an op to initialize the variables.
         init = tf.global_variables_initializer()
         # Add ops to save and restore all the variables.
         saver = tf.train.Saver()
-        # summary writter
-        train_summary_writer = tf.summary.FileWriter(
-            FLAGS.log_dir + 'ephoch_train', graph=graph)
-        valid_summary_writer = tf.summary.FileWriter(
-            FLAGS.log_dir + 'ephoch_valid', graph=graph)
 
         # Session
         with tf.Session() as sess:
@@ -159,71 +218,39 @@ def main(_):
             if FLAGS.restore_path is not None:
                 saver.restore(sess, FLAGS.restore_path)
                 print("Model restored:", FLAGS.restore_path)
-            # training
-            for _ in range(FLAGS.total_epoches):
-                # time cost evaluation
-                start_time = time.time()
-                # Shuffle the data
-                shuffled_indexes = np.random.permutation(input_train.shape[0])
-                input_train = input_train[shuffled_indexes]
-                label_train = label_train[shuffled_indexes]
-                train_loss_sum = 0.0
-                for b in range(train_num_batch):
-                    batch_idx = b * FLAGS.batch_size
-                    # input, label
-                    input_train_batch = input_train[batch_idx:batch_idx +
-                                                  FLAGS.batch_size]
-                    label_train_batch = label_train[batch_idx:batch_idx +
+            # prediction on test dataset
+            result_all = []
+            test_loss_sum = 0
+            for b in range(train_num_batch):
+                batch_idx = b * FLAGS.batch_size
+                train_data_batch = polluted_train_input[batch_idx:batch_idx + FLAGS.batch_size]
+
+                # train one batch
+                result = model.predict(sess, train_data_batch)
+                result_all.append(result)
+
+            result_all = np.array(result_all)
+            result_loss = []
+            result_loss_sum = 0
+            for b in range(train_num_batch):
+                batch_idx = b * FLAGS.batch_size
+                train_data_batch = polluted_train_input[batch_idx:batch_idx + FLAGS.batch_size]
+                label_data_batch = pure_train_input[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
-                    # train one batch
-                    losses, global_step = model.step(
-                        sess, input_train_batch, label_train_batch)
-                    train_loss_sum += losses
-                global_ephoch = int(global_step // train_num_batch)
 
-                # validation
-                valid_loss_sum = 0.0
-                for valid_b in range(valid_num_batch):
-                    batch_idx = valid_b * FLAGS.batch_size
-                    # input, label
-                    input_valid_batch = input_valid[batch_idx:batch_idx +
-                                                FLAGS.batch_size]
-                    label_valid_batch = label_valid[batch_idx:batch_idx +
-                                                  FLAGS.batch_size]
-                    valid_losses = model.compute_loss(
-                        sess, input_valid_batch, label_valid_batch)
-                    valid_loss_sum += valid_losses
-                end_time = time.time()
+                loss = model.compute_loss(
+                    sess, train_data_batch, label_data_batch)
+                result_loss.append(loss)
+                result_loss_sum += loss
+            result_loss = np.array(result_loss)
 
-                # logging per ephoch
-                print("%d epoches, %d steps, mean train loss: %f, valid mean loss: %f, time cost: %f(sec/batch)" %
-                      (global_ephoch,
-                       global_step,
-                       train_loss_sum / train_num_batch,
-                       valid_loss_sum / valid_num_batch,
-                       (end_time - start_time) / train_num_batch))
+            print("test mean loss: %f" % (result_loss_sum / train_num_batch))
+            result_all = np.reshape(
+                result_all, (result_all.shape[0] * result_all.shape[1], result_all.shape[2], result_all.shape[3], result_all.shape[4]))
+            print(result_all.shape)
+            print(train_data.shape)
+            plot_result_cmp_label(result_all, train_data)
 
-                # train mean ephoch loss
-                train_scalar_summary = tf.Summary()
-                train_scalar_summary.value.add(
-                    simple_value=train_loss_sum / train_num_batch, tag="mean loss")
-                train_summary_writer.add_summary(
-                    train_scalar_summary, global_step=global_step)
-                train_summary_writer.flush()
-                # valid mean ephoch loss
-                valid_scalar_summary = tf.Summary()
-                valid_scalar_summary.value.add(
-                    simple_value=valid_loss_sum / valid_num_batch, tag="mean loss")
-                valid_summary_writer.add_summary(
-                    valid_scalar_summary, global_step=global_step)
-                valid_summary_writer.flush()
-
-                # save checkpoints
-                if (global_ephoch % FLAGS.save_freq) == 0:
-                    save_path = saver.save(
-                        sess, FLAGS.checkpoints_dir + "model.ckpt",
-                        global_step=global_step)
-                    print("Model saved in file: %s" % save_path)
 
 if __name__ == "__main__":
     if not os.path.exists(FLAGS.checkpoints_dir):

@@ -25,7 +25,7 @@ import pandas as pd
 from scipy.optimize import least_squares
 
 # FLAGs
-DRAW_VD_MODE = True
+DRAW_VD_MODE = False
 OUTLIERS_THRSHOLD = 2
 
 # PATH

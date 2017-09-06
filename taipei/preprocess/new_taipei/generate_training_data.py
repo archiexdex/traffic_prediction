@@ -14,12 +14,32 @@ import sys
 import getopt
 import datetime
 import time
+import math
 import matplotlib.pyplot as plt
 
+
+is_log = 0
 
 DATA_PATH = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/"
 TOLERANCE = 0
 START_TIME = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
+
+def data_normalization(data, file_name):
+    # normalize each dims [t, d, f, s, w]
+    key = ["time", "density", "flow", "speed", "week"]
+    norm = {}
+    with open(DATA_PATH + "norm.json", 'r') as fp:
+        norm = json.load(fp)
+    norm[file_name] = {}
+    for i in range(5):
+        temp_mean = np.mean(data[:, :, i])
+        temp_std = np.std(data[:, :, i])
+        data[:, :, i] = (data[:, :, i] - temp_mean) / temp_std
+        print(i, temp_mean, temp_std)
+        norm[file_name][key[i]] = [temp_mean, temp_std]
+    with open(DATA_PATH + "norm.json", 'w') as fp:
+        json.dump(norm, fp)
+    return data
 
 def main():
     """
@@ -51,23 +71,23 @@ def main():
             outlier_file = np.load(outlier_filename)
 
             vd_file[:,0] = (vd_file[:,0] - START_TIME) / 300
+            vd_file[:,0] %= 1440
 
-            for i in vd_file:
-                if i[0] > 1440:
-                    i[0] -= 1440
             train_data.append(vd_file)
             mask_file |= outlier_file
             train_mask.append(mask_file)
 
-    print("!")
     # gather label data into one tensor according to vd_grp_lane_list
     label_data = []
     label_mask = []
     k = 0
     for vd in target_vd_list["label"]:
         for grp in vd_grp_lane_list[vd]:
-            print(k, vd, grp)
-            k += 1
+            
+            # Show label VD order
+            if is_log == 1:
+                print(k, vd, grp)
+                k += 1
             vd_filenme       = DATA_PATH + "5/fix_data_group/" + vd + "_" + grp + ".npy"
             mask_filename    = DATA_PATH + "5/mask_group/"     + vd + "_" + grp + ".npy"
             outlier_filename = DATA_PATH + "5/mask_outlier/"   + vd + "_" + grp + ".npy"
@@ -76,10 +96,10 @@ def main():
             mask_file    = np.load(mask_filename)
             outlier_file = np.load(outlier_filename)
 
+            # change time form
             vd_file[:,0] = (vd_file[:,0] - START_TIME) / 300
-            for i in vd_file:
-                if i[0] > 1440:
-                    i[0] -= 1440
+            vd_file[:,0] %= 1440
+            
                 
             label_data.append(vd_file)
             mask_file |= outlier_file
@@ -94,7 +114,25 @@ def main():
     print(train_mask.shape)
     print(label_data.shape)
     print(label_mask.shape)
-
+    
+    # Calculate mean and variable
+    tmp_train = []
+    for idx in range(train_data.shape[1]):
+        if len( np.argwhere(train_mask[:, idx] == 1) ) == 0 :
+            tmp_train.append(train_data[:, idx, :])
+    tmp_train = np.array(tmp_train)
+    tmp_label = []
+    for idx in range(label_data.shape[1]):
+        if len( np.argwhere(label_mask[:, idx] == 1) ) == 0 :
+            tmp_label.append(label_data[:, idx, :])
+    tmp_label = np.array(tmp_label)
+    
+    print(tmp_train.shape)
+    print(tmp_label.shape)
+    data_normalization(tmp_train, "train")
+    data_normalization(tmp_label, "valid")
+    
+    # Build train data and label data
     input_organized_data = []
     label_organized_data = []
     label_mask_organized_data = []
@@ -102,17 +140,28 @@ def main():
 
         train = np.argwhere(train_mask[:, i:i + 12] == 1)
         label = np.argwhere(label_mask[:, i + 12:i + 13] == 1)
-
-        tmp = label_mask[:, i + 12]
-        if len(train) != 0:
-            tmp |= 1
-        train = []
-        label = []
-
-        if len(train) == 0 and len(label) == 0:
+        # train_tmp = [[],[],[],[],[],[],
+        #             [],[],[],[],[],[],]
+        # for _, item in enumerate(train):
+        #     item = list(item)
+        #     train_tmp[ item[1] ].append(item)
+        # label_tmp = [[]]
+        # for _, item in enumerate(label):
+        #     item = list(item)
+        #     label_tmp[ item[1] ].append(item)
+        
+        # train_size = 0
+        # for _, item in enumerate(train_tmp):
+        #     if len(item) > 0:
+        #         train_size += 1
+        # label_size = 0
+        # for _, item in enumerate(label_tmp):
+        #     if len(item) > 0:
+        #         label_size += 1
+        # if train_size <= 0 and label_size <= 0:
+        if len(train) <= 0 and len(label) <= 0:
             input_organized_data.append(train_data[:, i:i + 12, :])
             label_organized_data.append(label_data[:, i + 12, :])
-            label_mask_organized_data.append(tmp)
 
     input_organized_data = np.array(input_organized_data)
     label_organized_data = np.array(label_organized_data)
@@ -121,7 +170,7 @@ def main():
     print("total data shape")
     print(input_organized_data.shape)
     print(label_organized_data.shape)
-
+    
     del train_data
     del train_mask
     del label_data
@@ -138,15 +187,15 @@ def main():
     print('data saved')
     train_label, test_label, _ = np.split(
         label_organized_data, [label_organized_data.shape[0] * 8 // 10, label_organized_data.shape[0] * 9 // 10])
-    _, test_mask, _ = np.split(
-        label_mask_organized_data, [label_mask_organized_data.shape[0] * 8 // 10, label_mask_organized_data.shape[0] * 9 // 10])
+    # _, test_mask, _ = np.split(
+    #     label_mask_organized_data, [label_mask_organized_data.shape[0] * 8 // 10, label_mask_organized_data.shape[0] * 9 // 10])
 
-    # change time
+    # change time in order to draw data easily
     test_label[:, :, 0] = test_label[:, :, 0] * 300 + START_TIME   
 
     np.save(DATA_PATH + 'train_label.npy', train_label)
     np.save(DATA_PATH + 'test_label.npy', test_label)
-    np.save(DATA_PATH + 'test_mask.npy', test_mask)
+    # np.save(DATA_PATH + 'test_mask.npy', test_mask)
 
     print(train_label.shape)
     print(test_label.shape)

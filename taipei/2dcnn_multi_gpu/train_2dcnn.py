@@ -81,7 +81,8 @@ def main(_):
         # training loss saver
         loss_saver = parameter_saver.Training_loss_saver()
         loss_saver.add_parameter(
-            "description", "remove some bad VD train(VPJFZ00), label(VP8GI20, VP8GI60, VP8GX40, VMXH820)")
+            "description", "remove some bad VD train(VPJFZ00), label(VP8GI20, VP8GI60, VP8GX40, VMXH820) \
+                            fix bug")
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :]
         test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]

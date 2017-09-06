@@ -43,25 +43,38 @@ tf.app.flags.DEFINE_float('learning_rate', 0.001,
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
 
+
+def get_weights_for_loss_fn():
+    key = ["time", "density", "flow", "speed", "week"]
+    norm = {}
+    with open(FLAGS.data_dir + "norm.json", 'r') as fp:
+        norm = json.load(fp)
+    d_mean = norm['train'][key[1]][0]
+    f_mean = norm['train'][key[2]][0]
+    s_mean = norm['train'][key[3]][0]
+    return [1./d_mean, 1./f_mean, 1./s_mean]
+    # return [1.,1.,1.]
+
+
 def data_normalization(data, file_name):
     # normalize each dims [t, d, f, s, w]
 
     key = ["time", "density", "flow", "speed", "week"]
     norm = {}
-    with open("norm.json", 'r') as fp:
+    with open(FLAGS.data_dir + "norm.json", 'r') as fp:
         norm = json.load(fp)
-    norm[file_name] = {}
 
-    # and dump each pair(mean, std) to json for testing 
+    # and dump each pair(mean, std) to json for testing
     for i in range(5):
-        temp_mean = np.mean(data[:, :, :, i])
-        temp_std = np.std(data[:, :, :, i])
+        # temp_mean = np.mean(data[:, :, :, i])
+        # temp_std = np.std(data[:, :, :, i])
+        temp_mean = norm[file_name][key[i]][0]
+        temp_std = norm[file_name][key[i]][1]
         data[:, :, :, i] = (data[:, :, :, i] - temp_mean) / temp_std
         print(i, temp_mean, temp_std)
         norm[file_name][key[i]] = [temp_mean, temp_std]
-    with open("norm.json", 'w') as fp:
-        json.dump(norm, fp)
     return data
+
 
 def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
     print('all_data.shape:', all_data.shape)
@@ -70,7 +83,7 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
     for one_data in all_data:
         aug_data.append([one_data for _ in range(aug_ratio)])
     aug_data = np.concatenate(aug_data, axis=0)
-    raw_data = np.array(aug_data[:, :, :,1:4]) # only [d, f, s]
+    raw_data = np.array(aug_data[:, :, :, 1:4])  # only [d, f, s]
     print('raw_data.shape:', raw_data.shape)
     # randomly corrupt target data
     for one_data in aug_data:
@@ -91,7 +104,7 @@ class TrainingConfig(object):
     Training config
     """
 
-    def __init__(self, filter_numbers, filter_strides, input_shape):
+    def __init__(self, filter_numbers, filter_strides, input_shape, loss_fn_weights):
         self.filter_numbers = filter_numbers
         self.filter_strides = filter_strides
         self.input_shape = input_shape
@@ -105,6 +118,7 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
+        self.loss_fn_weights = loss_fn_weights
 
     def show(self):
         print("filter_numbers:", self.filter_numbers)
@@ -120,6 +134,7 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
+        print("loss_fn_weights:", self.loss_fn_weights)
 
 
 def main(_):
@@ -134,15 +149,16 @@ def main(_):
             valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
         # data normalization
         input_train = data_normalization(input_train, "train")
-        input_valid = data_normalization(input_valid, "valid")
+        input_valid = data_normalization(input_valid, "train")
         # number of batches
         train_num_batch = input_train.shape[0] // FLAGS.batch_size
         valid_num_batch = input_valid.shape[0] // FLAGS.batch_size
         print(train_num_batch)
         print(valid_num_batch)
         # config setting
+        loss_fn_weights = get_weights_for_loss_fn()
         config = TrainingConfig(
-            FILTER_NUMBERS, FILTER_STRIDES, train_data.shape)
+            FILTER_NUMBERS, FILTER_STRIDES, train_data.shape, loss_fn_weights)
         config.show()
         # model
         model = model_dcae.DCAEModel(config, graph=graph)
@@ -176,7 +192,7 @@ def main(_):
                     batch_idx = b * FLAGS.batch_size
                     # input, label
                     input_train_batch = input_train[batch_idx:batch_idx +
-                                                  FLAGS.batch_size]
+                                                    FLAGS.batch_size]
                     label_train_batch = label_train[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
                     # train one batch
@@ -192,9 +208,9 @@ def main(_):
                     batch_idx = valid_b * FLAGS.batch_size
                     # input, label
                     input_valid_batch = input_valid[batch_idx:batch_idx +
-                                                FLAGS.batch_size]
+                                                    FLAGS.batch_size]
                     label_valid_batch = label_valid[batch_idx:batch_idx +
-                                                  FLAGS.batch_size]
+                                                    FLAGS.batch_size]
                     valid_losses = model.compute_loss(
                         sess, input_valid_batch, label_valid_batch)
                     valid_loss_sum += valid_losses
@@ -233,6 +249,7 @@ def main(_):
                         sess, FLAGS.checkpoints_dir + "model.ckpt",
                         global_step=global_step)
                     print("Model saved in file: %s" % save_path)
+
 
 if __name__ == "__main__":
     if not os.path.exists(FLAGS.checkpoints_dir):

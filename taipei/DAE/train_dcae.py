@@ -41,6 +41,8 @@ tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_float('learning_rate', 0.001,
                           "learning rate of AdamOptimizer")
+tf.app.flags.DEFINE_bool('if_norm_label', True,
+                          "if normalize label data")
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
 
@@ -94,6 +96,7 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
+        self.if_norm_label = FLAGS.if_norm_label
 
     def show(self):
         print("filter_numbers:", self.filter_numbers)
@@ -109,6 +112,7 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
+        print("if_norm_label:", self.if_norm_label)
 
 
 def main(_):
@@ -124,9 +128,14 @@ def main(_):
         # data normalization
         Norm_er = utils.Norm()
         input_train = Norm_er.data_normalization(input_train)
-        label_train = Norm_er.data_normalization(label_train)[:, :, :, 1:4]
         input_valid = Norm_er.data_normalization(input_valid)
-        label_valid = Norm_er.data_normalization(label_valid)[:, :, :, 1:4]
+        if FLAGS.if_norm_label:
+            label_train = Norm_er.data_normalization(label_train)[:, :, :, 1:4]
+            label_valid = Norm_er.data_normalization(label_valid)[:, :, :, 1:4]
+        else:
+            label_train = label_train[:, :, :, 1:4]
+            label_valid = label_valid[:, :, :, 1:4]
+
         # number of batches
         train_num_batch = input_train.shape[0] // FLAGS.batch_size
         valid_num_batch = input_valid.shape[0] // FLAGS.batch_size
@@ -175,7 +184,8 @@ def main(_):
                     losses, sep_loss, global_step = model.step(
                         sess, input_train_batch, label_train_batch)
                     train_loss_sum += losses
-                    sep_loss = Norm_er.data_recover(sep_loss)
+                    if FLAGS.if_norm_label:
+                        sep_loss = Norm_er.data_recover(sep_loss)
                     train_sep_loss_sum += sep_loss
                 global_ephoch = int(global_step // train_num_batch)
 

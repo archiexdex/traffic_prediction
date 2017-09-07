@@ -8,6 +8,7 @@ import json
 import numpy as np
 import tensorflow as tf
 import model_dcae
+import utils
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -18,16 +19,16 @@ tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
                            "validation data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v5/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v5/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
 # data augmentation and corruption
 tf.app.flags.DEFINE_integer('aug_ratio', 4,
                             "the ratio of data augmentation")
-tf.app.flags.DEFINE_integer('corrupt_amount', 100,
+tf.app.flags.DEFINE_integer('corrupt_amount', 60,
                             "the amount of corrupted data")
 # training parameters
 FILTER_NUMBERS = [32, 64, 128]
@@ -43,40 +44,7 @@ tf.app.flags.DEFINE_float('learning_rate', 0.001,
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
 
-
-def get_weights_for_loss_fn():
-    key = ["time", "density", "flow", "speed", "week"]
-    norm = {}
-    with open(FLAGS.data_dir + "norm.json", 'r') as fp:
-        norm = json.load(fp)
-    d_mean = norm['train'][key[1]][0]
-    f_mean = norm['train'][key[2]][0]
-    s_mean = norm['train'][key[3]][0]
-    return [1./d_mean, 1./f_mean, 1./s_mean]
-    # return [1.,1.,1.]
-
-
-def data_normalization(data, file_name):
-    # normalize each dims [t, d, f, s, w]
-
-    key = ["time", "density", "flow", "speed", "week"]
-    norm = {}
-    with open(FLAGS.data_dir + "norm.json", 'r') as fp:
-        norm = json.load(fp)
-
-    # and dump each pair(mean, std) to json for testing
-    for i in range(5):
-        # temp_mean = np.mean(data[:, :, :, i])
-        # temp_std = np.std(data[:, :, :, i])
-        temp_mean = norm[file_name][key[i]][0]
-        temp_std = norm[file_name][key[i]][1]
-        data[:, :, :, i] = (data[:, :, :, i] - temp_mean) / temp_std
-        print(i, temp_mean, temp_std)
-        norm[file_name][key[i]] = [temp_mean, temp_std]
-    return data
-
-
-def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
+def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random_vd'):
     print('all_data.shape:', all_data.shape)
     # data augmentation
     aug_data = []
@@ -85,16 +53,24 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
     aug_data = np.concatenate(aug_data, axis=0)
     raw_data = np.array(aug_data[:, :, :, 1:4])  # only [d, f, s]
     print('raw_data.shape:', raw_data.shape)
-    # randomly corrupt target data
-    for one_data in aug_data:
-        corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
-                                           size=corrupt_amount)
-        corrupt_target = np.stack(
-            [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
-        # corrupt target as [0, 0, 0, time, weekday]
-        for target in corrupt_target:
-            one_data[target[0], target[1], 1:4] = 0.0
-    corrupt_data = aug_data
+    if policy == 'random_data':
+        # randomly corrupt target data
+        for one_data in aug_data:
+            corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
+                                               size=corrupt_amount)
+            corrupt_target = np.stack(
+                [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
+            # corrupt target as [0, 0, 0, time, weekday]
+            for target in corrupt_target:
+                one_data[target[0], target[1], 1:4] = 0.0
+        corrupt_data = aug_data
+    elif policy == 'random_vd':
+        # randomly corrupt 5 target vd
+        for one_data in aug_data:
+            corrupt_target = np.random.randint(all_data.shape[1], size=corrupt_amount//12)
+            # corrupt target as [0, 0, 0, time, weekday]
+            one_data[corrupt_target, :, 1:4] = 0.0
+        corrupt_data = aug_data
 
     return corrupt_data, raw_data
 
@@ -104,7 +80,7 @@ class TrainingConfig(object):
     Training config
     """
 
-    def __init__(self, filter_numbers, filter_strides, input_shape, loss_fn_weights):
+    def __init__(self, filter_numbers, filter_strides, input_shape):
         self.filter_numbers = filter_numbers
         self.filter_strides = filter_strides
         self.input_shape = input_shape
@@ -118,7 +94,6 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
-        self.loss_fn_weights = loss_fn_weights
 
     def show(self):
         print("filter_numbers:", self.filter_numbers)
@@ -134,7 +109,6 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
-        print("loss_fn_weights:", self.loss_fn_weights)
 
 
 def main(_):
@@ -148,17 +122,17 @@ def main(_):
         input_valid, label_valid = generate_input_and_label(
             valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
         # data normalization
-        input_train = data_normalization(input_train, "train")
-        input_valid = data_normalization(input_valid, "train")
+        Norm_er = utils.Norm()
+        input_train = Norm_er.data_normalization(input_train, "train")
+        input_valid = Norm_er.data_normalization(input_valid, "train")
         # number of batches
         train_num_batch = input_train.shape[0] // FLAGS.batch_size
         valid_num_batch = input_valid.shape[0] // FLAGS.batch_size
         print(train_num_batch)
         print(valid_num_batch)
         # config setting
-        loss_fn_weights = get_weights_for_loss_fn()
         config = TrainingConfig(
-            FILTER_NUMBERS, FILTER_STRIDES, train_data.shape, loss_fn_weights)
+            FILTER_NUMBERS, FILTER_STRIDES, train_data.shape)
         config.show()
         # model
         model = model_dcae.DCAEModel(config, graph=graph)

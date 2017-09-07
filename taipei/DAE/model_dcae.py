@@ -37,7 +37,6 @@ class DCAEModel(object):
         self.log_dir = config.log_dir
         self.learning_rate = config.learning_rate
         self.input_shape = config.input_shape
-        self.loss_fn_weights = config.loss_fn_weights
         # steps
         self.__global_step = tf.train.get_or_create_global_step(graph=graph)
         # data
@@ -159,7 +158,7 @@ class DCAEModel(object):
             vd_losses = tf.squared_difference(__logits, labels)
             sep_mean_loss = tf.reduce_mean(tf.reshape(vd_losses, shape=[
                                            self.batch_size* self.input_shape[1] * self.input_shape[2], 3]), axis=0)
-            l2_mean_loss = tf.tensordot(self.loss_fn_weights, sep_mean_loss, axes=1)
+            l2_mean_loss = tf.reduce_mean(sep_mean_loss)
             
         print('l2_mean_loss:', l2_mean_loss)
         print('sep_mean_loss:', sep_mean_loss)

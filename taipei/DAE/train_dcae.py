@@ -51,7 +51,7 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random
     for one_data in all_data:
         aug_data.append([one_data for _ in range(aug_ratio)])
     aug_data = np.concatenate(aug_data, axis=0)
-    raw_data = np.array(aug_data[:, :, :, 1:4])  # only [d, f, s]
+    raw_data = np.array(aug_data)
     print('raw_data.shape:', raw_data.shape)
     if policy == 'random_data':
         # randomly corrupt target data
@@ -123,8 +123,10 @@ def main(_):
             valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
         # data normalization
         Norm_er = utils.Norm()
-        input_train = Norm_er.data_normalization(input_train, "train")
-        input_valid = Norm_er.data_normalization(input_valid, "train")
+        input_train = Norm_er.data_normalization(input_train)
+        label_train = Norm_er.data_normalization(label_train)[:, :, :, 1:4]
+        input_valid = Norm_er.data_normalization(input_valid)
+        label_valid = Norm_er.data_normalization(label_valid)[:, :, :, 1:4]
         # number of batches
         train_num_batch = input_train.shape[0] // FLAGS.batch_size
         valid_num_batch = input_valid.shape[0] // FLAGS.batch_size
@@ -173,6 +175,7 @@ def main(_):
                     losses, sep_loss, global_step = model.step(
                         sess, input_train_batch, label_train_batch)
                     train_loss_sum += losses
+                    sep_loss = Norm_er.data_recover(sep_loss)
                     train_sep_loss_sum += sep_loss
                 global_ephoch = int(global_step // train_num_batch)
 

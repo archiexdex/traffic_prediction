@@ -29,6 +29,7 @@ args = parser.parse_args()
 mode = 5
 time_padding = 30
 is_allow_offset = 1
+is_append_mask = 1
 # 1 means time = mode * 1 e.g. long_period = 1 and mode = 5 means if there
 # are more than 5 minutes data be [0, 0, 0], we will mask it
 long_period = 6
@@ -109,7 +110,10 @@ def check_data(path):
             continue
         # It may occur when data has missing data
         elif i >= data.shape[0] or item[0] > now + time_padding:
-            fix_data[ptr] = [now, 0, 0, 0, get_week(now)]
+            if is_append_mask == 0:
+                fix_data[ptr] = [now, 0, 0, 0, get_week(now)]
+            elif is_append_mask == 1 :
+                fix_data[ptr] = [now, 0, 0, 0, get_week(now), 0]
             mask_list[ptr] = 1
             ptr += 1
 
@@ -125,6 +129,8 @@ def check_data(path):
                             mask_list[ptr - k - 1] = 1
                         count = 0
 
+            if is_append_mask == 1:
+                item.append(0)
             fix_data[ptr] = item
             ptr += 1
             i += 1
@@ -142,63 +148,63 @@ def check_data(path):
 """
     Main
 """
-# for root, dirs, files in os.walk(data_path):
-#     for file in files:
-#         path = os.path.join(data_path, file)
-#         print("Fixing VD: "+file)
-#         vd_name = file[:9]
-#         check_data(path)
-#     break
-
-file_list = []
 for root, dirs, files in os.walk(data_path):
-    file_list = files
+    for file in files:
+        path = os.path.join(data_path, file)
+        print("Fixing VD: "+file)
+        vd_name = file[:9]
+        check_data(path)
     break
 
-
-class MyThread(threading.Thread):
-    def __init__(self, thread_id, thread_name, file_list):
-        threading.Thread.__init__(self)
-        self.thread_id = thread_id
-        self.thread_name = thread_name
-        self.file_list = file_list
-
-    def run(self):
-        for file in self.file_list:
-            path = os.path.join(data_path, file)
-            print("Fixing VD: " + file)
-            vd_name = file[:9]
-            check_data(path)
+# file_list = []
+# for root, dirs, files in os.walk(data_path):
+#     file_list = files
+#     break
 
 
-file_size = len(file_list)
-# Initialize new threads
-thread1 = MyThread(
-    1, "Thread-1", file_list[file_size // 8 * 0:file_size // 8 * 1])
-thread2 = MyThread(
-    2, "Thread-2", file_list[file_size // 8 * 1:file_size // 8 * 2])
-thread3 = MyThread(
-    3, "Thread-3", file_list[file_size // 8 * 2:file_size // 8 * 3])
-thread4 = MyThread(
-    4, "Thread-4", file_list[file_size // 8 * 3:file_size // 8 * 4])
+# class MyThread(threading.Thread):
+#     def __init__(self, thread_id, thread_name, file_list):
+#         threading.Thread.__init__(self)
+#         self.thread_id = thread_id
+#         self.thread_name = thread_name
+#         self.file_list = file_list
 
-thread5 = MyThread(
-    5, "Thread-5", file_list[file_size // 8 * 4:file_size // 8 * 5])
-thread6 = MyThread(
-    6, "Thread-6", file_list[file_size // 8 * 5:file_size // 8 * 6])
-thread7 = MyThread(
-    7, "Thread-7", file_list[file_size // 8 * 6:file_size // 8 * 7])
-thread8 = MyThread(8, "Thread-8", file_list[file_size // 8 * 7:])
+#     def run(self):
+#         for file in self.file_list:
+#             path = os.path.join(data_path, file)
+#             print("Fixing VD: " + file)
+#             vd_name = file[:9]
+#             check_data(path)
 
-thread_list = [thread1, thread2, thread3,
-               thread4, thread5, thread6, thread7, thread8]
-# Start threads
-for i in thread_list:
-    i.start()
 
-# Join threads
-for i in thread_list:
-    i.join()
+# file_size = len(file_list)
+# # Initialize new threads
+# thread1 = MyThread(
+#     1, "Thread-1", file_list[file_size // 8 * 0:file_size // 8 * 1])
+# thread2 = MyThread(
+#     2, "Thread-2", file_list[file_size // 8 * 1:file_size // 8 * 2])
+# thread3 = MyThread(
+#     3, "Thread-3", file_list[file_size // 8 * 2:file_size // 8 * 3])
+# thread4 = MyThread(
+#     4, "Thread-4", file_list[file_size // 8 * 3:file_size // 8 * 4])
+
+# thread5 = MyThread(
+#     5, "Thread-5", file_list[file_size // 8 * 4:file_size // 8 * 5])
+# thread6 = MyThread(
+#     6, "Thread-6", file_list[file_size // 8 * 5:file_size // 8 * 6])
+# thread7 = MyThread(
+#     7, "Thread-7", file_list[file_size // 8 * 6:file_size // 8 * 7])
+# thread8 = MyThread(8, "Thread-8", file_list[file_size // 8 * 7:])
+
+# thread_list = [thread1, thread2, thread3,
+#                thread4, thread5, thread6, thread7, thread8]
+# # Start threads
+# for i in thread_list:
+#     i.start()
+
+# # Join threads
+# for i in thread_list:
+#     i.join()
 
 
 ed_time = datetime.datetime.now()

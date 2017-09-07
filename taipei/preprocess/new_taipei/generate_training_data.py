@@ -100,11 +100,19 @@ def main():
             vd_file[:,0] = (vd_file[:,0] - START_TIME) / 300
             vd_file[:,0] %= 1440
             
-                
             label_data.append(vd_file)
             mask_file |= outlier_file
             label_mask.append(mask_file)
     
+    # concatenate data and mask
+    for idx, (item1, item2) in enumerate(zip(train_data, train_mask)):
+        for jdx, (jtem1, jtem2) in enumerate(zip(item1, item2)):
+            jtem1[5] = jtem2
+    
+    for idx, (item1, item2) in enumerate(zip(label_data, label_mask)):
+        for jdx, (jtem1, jtem2) in enumerate(zip(item1, item2)):
+            jtem1[5] = jtem2
+
     train_data = np.array(train_data)
     train_mask = np.array(train_mask)
     label_data = np.array(label_data)
@@ -114,7 +122,7 @@ def main():
     print(train_mask.shape)
     print(label_data.shape)
     print(label_mask.shape)
-    
+
     # Calculate mean and variable
     tmp_train = []
     for idx in range(train_data.shape[1]):

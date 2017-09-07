@@ -62,8 +62,9 @@ def data_normalization(data, file_name):
     # normalize each dims [t, d, f, s, w]
     key = ["time", "density", "flow", "speed", "week"]
     norm = {}
-    with open("norm.json", "r") as fp:
+    with open(FLAGS.data_dir + "norm.json", 'r') as fp:
         norm = json.load(fp)
+    # and dump each pair(mean, std) to json for testing
     for i in range(5):
         # temp_mean = np.mean(data[:, :, :, i])
         # temp_std = np.std(data[:, :, :, i])
@@ -71,6 +72,7 @@ def data_normalization(data, file_name):
         temp_std = norm[file_name][key[i]][1]
         data[:, :, :, i] = (data[:, :, :, i] - temp_mean) / temp_std
         print(i, temp_mean, temp_std)
+        norm[file_name][key[i]] = [temp_mean, temp_std]
     return data
 
 

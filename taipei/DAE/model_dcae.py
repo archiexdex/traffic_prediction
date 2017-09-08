@@ -201,10 +201,14 @@ class DCAEModel(object):
         ------
         loss : float 
             MSE of one batch
+        sep_loss : float, shape=[3]
+            MSE of each dimensions
         """
         feed_dict = {self.__corrupt_data: inputs, self.__raw_data: labels}
-        loss = sess.run(self.__loss, feed_dict=feed_dict)
-        return loss
+        # loss = sess.run(self.__loss, feed_dict=feed_dict)
+        loss, sep_loss = sess.run(
+            [self.__loss, self.__sep_loss], feed_dict=feed_dict)
+        return loss, sep_loss
 
     def predict(self, sess, inputs):
         """ recover the inputs (corrupted data)

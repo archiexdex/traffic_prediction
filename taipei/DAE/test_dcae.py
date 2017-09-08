@@ -9,6 +9,7 @@ import json
 import numpy as np
 import tensorflow as tf
 import model_dcae
+import utils
 import plotly
 plotly.tools.set_credentials_file(
     username="XDEX", api_key="GTWbfZgCXH6MQ1VOb9FO")
@@ -32,9 +33,9 @@ tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v5/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v5/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', 'v1/checkpoints/model.ckpt-12800',
                            "path of saving model eg: checkpoints/model.ckpt-5")
@@ -54,50 +55,46 @@ tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_float('learning_rate', 0.001,
                           "learning rate of AdamOptimizer")
+tf.app.flags.DEFINE_bool('if_norm_label', True,
+                          "if normalize label data")
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
 
-
-def data_normalization(data, file_name):
-    # normalize each dims [t, d, f, s, w]
-    key = ["time", "density", "flow", "speed", "week"]
-    norm = {}
-    with open(FLAGS.data_dir + "norm.json", 'r') as fp:
-        norm = json.load(fp)
-    # and dump each pair(mean, std) to json for testing
-    for i in range(5):
-        # temp_mean = np.mean(data[:, :, :, i])
-        # temp_std = np.std(data[:, :, :, i])
-        temp_mean = norm[file_name][key[i]][0]
-        temp_std = norm[file_name][key[i]][1]
-        data[:, :, :, i] = (data[:, :, :, i] - temp_mean) / temp_std
-        print(i, temp_mean, temp_std)
-        norm[file_name][key[i]] = [temp_mean, temp_std]
-    return data
-
-
-def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
+def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random_vd'):
     print('all_data.shape:', all_data.shape)
+    # corrupt_list
+    corrupt_list = []
     # data augmentation
     aug_data = []
     for one_data in all_data:
         aug_data.append([one_data for _ in range(aug_ratio)])
     aug_data = np.concatenate(aug_data, axis=0)
-    raw_data = np.array(aug_data[:, :, :, 1:4])  # only [d, f, s]
+    raw_data = np.array(aug_data)
     print('raw_data.shape:', raw_data.shape)
-    # randomly corrupt target data
-    for one_data in aug_data:
-        corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
-                                           size=corrupt_amount)
-        corrupt_target = np.stack(
-            [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
-        # corrupt target as [0, 0, 0, time, weekday]
-        for target in corrupt_target:
-            one_data[target[0], target[1], 1:4] = 0.0
-    corrupt_data = aug_data
+    if policy == 'random_data':
+        # randomly corrupt target data
+        for one_data in aug_data:
+            corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
+                                               size=corrupt_amount)
+            corrupt_target = np.stack(
+                [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
+            # corrupt target as [0, 0, 0, time, weekday]
+            for target in corrupt_target:
+                one_data[target[0], target[1], 1:4] = 0.0
+            # save corrupt target
+            corrupt_list.append(corrupt_target)
+        corrupt_data = aug_data
+    elif policy == 'random_vd':
+        # randomly corrupt 5 target vd
+        for one_data in aug_data:
+            corrupt_target = np.random.randint(all_data.shape[1], size=corrupt_amount//12)
+            # corrupt target as [0, 0, 0, time, weekday]
+            one_data[corrupt_target, :, 1:4] = 0.0
+            # save corrupt target
+            corrupt_list.append(corrupt_target)
+        corrupt_data = aug_data
 
-    return corrupt_data, raw_data
-
+    return corrupt_data, raw_data, corrupt_list
 
 class TrainingConfig(object):
     """
@@ -118,6 +115,7 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
+        self.if_norm_label = FLAGS.if_norm_label
 
     def show(self):
         print("filter_numbers:", self.filter_numbers)
@@ -133,14 +131,19 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
+        print("if_norm_label:", self.if_norm_label)
 
 
-def plot_result_cmp_label(results, labels):
+def plot_result_cmp_label(results, labels, corrupt_list):
     """
     """
     START_TIME = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
     i = 50
     vd = 67
+    # TODO: random_vd or random_data
+    target_corrupt_list = []
+    for k in corrupt_list[i]:
+        
     while i < i+101:
         # Add data
         target_result_flow = results[i, vd, :, 2]
@@ -193,11 +196,15 @@ def main(_):
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
         # generate many pollute data and pure data
-        polluted_train_input, pure_train_input = generate_input_and_label(
+        polluted_train_input, pure_train_input, corrupt_list = generate_input_and_label(
             train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
         # data normalization
-        polluted_train_input = data_normalization(
-            polluted_train_input, "train")
+        Norm_er = utils.Norm()
+        polluted_train_input = Norm_er.data_normalization(polluted_train_input)
+        if FLAGS.if_norm_label:
+            pure_train_input = Norm_er.data_normalization(pure_train_input)[:, :, :, 1:4]
+        else:
+            pure_train_input = pure_train_input[:, :, :, 1:4]
 
         # number of batches
         train_num_batch = polluted_train_input.shape[0] // FLAGS.batch_size
@@ -222,36 +229,41 @@ def main(_):
                 print("Model restored:", FLAGS.restore_path)
             # prediction on test dataset
             result_all = []
-            test_loss_sum = 0
-            for b in range(train_num_batch):
-                batch_idx = b * FLAGS.batch_size
-                train_data_batch = polluted_train_input[batch_idx:batch_idx + FLAGS.batch_size]
-
-                # train one batch
-                result = model.predict(sess, train_data_batch)
-                result_all.append(result)
-
-            result_all = np.array(result_all)
             result_loss = []
             result_loss_sum = 0
+            each_loss_sum = np.zeros(shape=[3], dtype=np.float)
             for b in range(train_num_batch):
                 batch_idx = b * FLAGS.batch_size
                 train_data_batch = polluted_train_input[batch_idx:batch_idx + FLAGS.batch_size]
                 label_data_batch = pure_train_input[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
+                # train one batch
+                result = model.predict(sess, train_data_batch)
+                result_all.append(result)
 
-                loss = model.compute_loss(
+                # compute loss
+                loss, each_loss = model.compute_loss(
                     sess, train_data_batch, label_data_batch)
+                if FLAGS.if_norm_label:
+                    each_loss = Norm_er.data_recover(each_loss)
+                
                 result_loss.append(loss)
                 result_loss_sum += loss
+                each_loss_sum += each_loss
+
+            result_all = np.array(result_all)
             result_loss = np.array(result_loss)
 
             print("test mean loss: %f" % (result_loss_sum / train_num_batch))
+            print("%f density_loss, %f flow_loss, %f speed_loss" %
+                      (each_loss_sum[0] / train_num_batch,
+                       each_loss_sum[1] / train_num_batch,
+                       each_loss_sum[2] / train_num_batch))
             result_all = np.reshape(
                 result_all, (result_all.shape[0] * result_all.shape[1], result_all.shape[2], result_all.shape[3], result_all.shape[4]))
             print(result_all.shape)
             print(train_data.shape)
-            plot_result_cmp_label(result_all, train_data)
+            plot_result_cmp_label(result_all, train_data, corrupt_list)
 
 
 if __name__ == "__main__":

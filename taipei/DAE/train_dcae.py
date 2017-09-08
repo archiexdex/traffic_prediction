@@ -19,9 +19,9 @@ tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
                            "validation data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v5/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v4/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v5/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v4/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
@@ -41,7 +41,7 @@ tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_float('learning_rate', 0.001,
                           "learning rate of AdamOptimizer")
-tf.app.flags.DEFINE_bool('if_norm_label', True,
+tf.app.flags.DEFINE_bool('if_norm_label', False,
                           "if normalize label data")
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
@@ -127,8 +127,8 @@ def main(_):
             valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
         # data normalization
         Norm_er = utils.Norm()
-        input_train = Norm_er.data_normalization(input_train)
-        input_valid = Norm_er.data_normalization(input_valid)
+        input_train = Norm_er.data_normalization(input_train)[:, :, :, 0:5]
+        input_valid = Norm_er.data_normalization(input_valid)[:, :, :, 0:5]
         if FLAGS.if_norm_label:
             label_train = Norm_er.data_normalization(label_train)[:, :, :, 1:4]
             label_valid = Norm_er.data_normalization(label_valid)[:, :, :, 1:4]
@@ -143,7 +143,7 @@ def main(_):
         print(valid_num_batch)
         # config setting
         config = TrainingConfig(
-            FILTER_NUMBERS, FILTER_STRIDES, train_data.shape)
+            FILTER_NUMBERS, FILTER_STRIDES, input_train.shape)
         config.show()
         # model
         model = model_dcae.DCAEModel(config, graph=graph)
@@ -198,7 +198,7 @@ def main(_):
                                                     FLAGS.batch_size]
                     label_valid_batch = label_valid[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
-                    valid_losses = model.compute_loss(
+                    valid_losses, _ = model.compute_loss(
                         sess, input_valid_batch, label_valid_batch)
                     valid_loss_sum += valid_losses
                 end_time = time.time()

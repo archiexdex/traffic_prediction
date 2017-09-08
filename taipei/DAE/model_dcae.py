@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
+import utils
 
 
 class DCAEModel(object):
@@ -30,6 +31,8 @@ class DCAEModel(object):
         graph : tensorflow default graph
             for summary writer and __global_step init
         """
+        # use for loss recovering
+        self.Norm_er = utils.Norm()
         # hyper-parameters
         self.filter_numbers = config.filter_numbers
         self.filter_strides = config.filter_strides
@@ -37,6 +40,9 @@ class DCAEModel(object):
         self.log_dir = config.log_dir
         self.learning_rate = config.learning_rate
         self.input_shape = config.input_shape
+        self.if_label_normed = config.if_label_normed
+        self.if_mask_only = config.if_mask_only
+
         # steps
         self.__global_step = tf.train.get_or_create_global_step(graph=graph)
         # data
@@ -44,6 +50,8 @@ class DCAEModel(object):
             self.batch_size, self.input_shape[1], self.input_shape[2], self.input_shape[3]], name='corrupt_data')
         self.__raw_data = tf.placeholder(dtype=tf.float32, shape=[
             self.batch_size, self.input_shape[1], self.input_shape[2], 3], name='raw_data')
+        # get missing mask from input
+        self.__missing_mask = self.__corrupt_data[:, :, :, -1]
         # model
         self.__logits = self.__inference(
             self.__corrupt_data, self.filter_numbers, self.filter_strides)
@@ -63,11 +71,11 @@ class DCAEModel(object):
         self.train_summary_writer = tf.summary.FileWriter(
             self.log_dir + 'train', graph=graph)
 
-    def __inference(self, __corrupt_data, filter_numbers, filter_strides):
+    def __inference(self, corrupt_data, filter_numbers, filter_strides):
         """ construct the AutoEncoder model
         Params
         ------
-        __corrupt_data : placeholder, shape=[batch_size, nums_vd, nums_interval, features]
+        corrupt_data : placeholder, shape=[batch_size, nums_vd, nums_interval, features]
             get by randomly corrupting raw data
         filter_numbers : int, list
             the number of filters for each conv and decov in reversed order. e.g. [32, 64, 128]
@@ -76,14 +84,14 @@ class DCAEModel(object):
 
         Return
         ------
-        output : the result of AutoEndoer, shape is same as '__corrupt_data'
+        output : the result of AutoEndoer, shape is same as 'corrupt_data'
         """
         def lrelu(x, alpha=0.3):
             return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
-        print("__corrupt_data:", __corrupt_data)
+        print("corrupt_data:", corrupt_data)
         shapes_list = []
         # encoder
-        current_input = __corrupt_data
+        current_input = corrupt_data
         for layer_id, out_filter_amount in enumerate(filter_numbers):
             with tf.variable_scope('conv' + str(layer_id)) as scope:
                 # shape
@@ -137,13 +145,16 @@ class DCAEModel(object):
                 current_input = output
                 print(scope.name, output)
 
+        if self.if_label_normed:
+            with tf.name_scope('recover_logits_scale'):
+                output = self.Norm_er.logits_recover(output)
         return output
 
-    def __loss_function(self, __logits, labels):
+    def __loss_function(self, logits, labels):
         """ l2 function (mean square error)
         Params
         ------
-        __logits : tensor, from __inference()
+        logits : tensor, from __inference()
         labels : placeholder, raw data
 
         Return
@@ -154,14 +165,27 @@ class DCAEModel(object):
             the mean loss of each dimension (density, flow, speed)
 
         """
-        with tf.name_scope('l2_loss'):
-            vd_losses = tf.squared_difference(__logits, labels)
-            sep_mean_loss = tf.reduce_mean(tf.reshape(vd_losses, shape=[
-                                           self.batch_size* self.input_shape[1] * self.input_shape[2], 3]), axis=0)
-            l2_mean_loss = tf.reduce_mean(sep_mean_loss)
-            
+        if self.if_mask_only:
+            stacked__missing_mask = tf.stack(
+                [self.__missing_mask for _ in range(3)], axis=-1)
+            logits = tf.multiply(logits, stacked__missing_mask)
+            labels = tf.multiply(labels, stacked__missing_mask)
+            num_missing = tf.reduce_sum(self.__missing_mask)
+            with tf.name_scope('l2_loss'):
+                vd_losses = tf.squared_difference(logits, labels)
+                sep_mean_loss = tf.reduce_sum(tf.reshape(vd_losses, shape=[
+                    self.batch_size * self.input_shape[1] * self.input_shape[2], 3]), axis=0) / num_missing
+                l2_mean_loss = tf.reduce_mean(sep_mean_loss)
+        else:
+            with tf.name_scope('l2_loss'):
+                vd_losses = tf.squared_difference(logits, labels)
+                sep_mean_loss = tf.reduce_mean(tf.reshape(vd_losses, shape=[
+                    self.batch_size * self.input_shape[1] * self.input_shape[2], 3]), axis=0)
+                l2_mean_loss = tf.reduce_mean(sep_mean_loss)
+
         print('l2_mean_loss:', l2_mean_loss)
         print('sep_mean_loss:', sep_mean_loss)
+
         return l2_mean_loss, sep_mean_loss
 
     def step(self, sess, inputs, labels):

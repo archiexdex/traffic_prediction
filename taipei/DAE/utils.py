@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import json
 import numpy as np
+import tensorflow as tf
 
 
 class Norm(object):
@@ -19,7 +20,6 @@ class Norm(object):
             self.norm = json.load(fp)
 
     def data_normalization(self, data):
-        # and dump each pair(mean, std) to json for testing
         for i in range(5):
             temp_mean = self.norm['train'][self.key[i]][0]
             temp_std = self.norm['train'][self.key[i]][1]
@@ -28,10 +28,53 @@ class Norm(object):
         return data
 
     def data_recover(self, data):
-        # and dump each pair(mean, std) to json for testing
         for i in range(1, 4):
             temp_mean = self.norm['train'][self.key[i]][0]
             temp_std = self.norm['train'][self.key[i]][1]
             data[i-1] = data[i-1] * temp_std + temp_mean
-            # print(i, temp_mean, temp_std)
         return data
+
+    def logits_recover(self, logits):
+        # logits = [batch, vds, times, 3]
+        mean_list = []
+        std_list= []
+        for i in range(1, 4):
+            mean_list.append(self.norm['train'][self.key[i]][0])
+            std_list.append(self.norm['train'][self.key[i]][1])
+        logits = tf.multiply(logits, std_list) + mean_list
+        return logits
+
+
+
+def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random_vd'):
+    print('all_data.shape:', all_data.shape)
+    # data augmentation
+    aug_data = []
+    for one_data in all_data:
+        aug_data.append([one_data for _ in range(aug_ratio)])
+    aug_data = np.concatenate(aug_data, axis=0)
+    raw_data = np.array(aug_data)
+    print('raw_data.shape:', raw_data.shape)
+    if policy == 'random_data':
+        # randomly corrupt target data
+        for one_data in aug_data:
+            corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
+                                               size=corrupt_amount)
+            corrupt_target = np.stack(
+                [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
+            # corrupt target as [time, 0, 0, 0, weekday, missing=True]
+            for target in corrupt_target:
+                one_data[target[0], target[1], 1:4] = 0.0
+                one_data[target[0], target[1], -1] = True
+        corrupt_data = aug_data
+    elif policy == 'random_vd':
+        # randomly corrupt 5 target vd
+        for one_data in aug_data:
+            corrupt_target = np.random.randint(
+                all_data.shape[1], size=corrupt_amount // 12)
+            # corrupt target as [time, 0, 0, 0, weekday, missing=True]
+            one_data[corrupt_target, :, 1:4] = 0.0
+            one_data[corrupt_target, :, -1] = True
+        corrupt_data = aug_data
+
+    return corrupt_data, raw_data

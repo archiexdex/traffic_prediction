@@ -45,36 +45,11 @@ tf.app.flags.DEFINE_bool('if_norm_label', False,
                           "if normalize label data")
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
-
-def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random_vd'):
-    print('all_data.shape:', all_data.shape)
-    # data augmentation
-    aug_data = []
-    for one_data in all_data:
-        aug_data.append([one_data for _ in range(aug_ratio)])
-    aug_data = np.concatenate(aug_data, axis=0)
-    raw_data = np.array(aug_data)
-    print('raw_data.shape:', raw_data.shape)
-    if policy == 'random_data':
-        # randomly corrupt target data
-        for one_data in aug_data:
-            corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
-                                               size=corrupt_amount)
-            corrupt_target = np.stack(
-                [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
-            # corrupt target as [0, 0, 0, time, weekday]
-            for target in corrupt_target:
-                one_data[target[0], target[1], 1:4] = 0.0
-        corrupt_data = aug_data
-    elif policy == 'random_vd':
-        # randomly corrupt 5 target vd
-        for one_data in aug_data:
-            corrupt_target = np.random.randint(all_data.shape[1], size=corrupt_amount//12)
-            # corrupt target as [0, 0, 0, time, weekday]
-            one_data[corrupt_target, :, 1:4] = 0.0
-        corrupt_data = aug_data
-
-    return corrupt_data, raw_data
+# flags
+tf.app.flags.DEFINE_bool('if_label_normed', True,
+                         "if label data normalized, we need to recover its scale back before compute loss")
+tf.app.flags.DEFINE_bool('if_mask_only', True,
+                         "if the loss computed on mask only")
 
 
 class TrainingConfig(object):
@@ -96,7 +71,8 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
-        self.if_norm_label = FLAGS.if_norm_label
+        self.if_label_normed = FLAGS.if_label_normed
+        self.if_mask_only = FLAGS.if_mask_only
 
     def show(self):
         print("filter_numbers:", self.filter_numbers)
@@ -112,7 +88,8 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
-        print("if_norm_label:", self.if_norm_label)
+        print("if_label_normed:", self.if_label_normed)
+        print("if_mask_only:", self.if_mask_only)
 
 
 def main(_):
@@ -121,10 +98,10 @@ def main(_):
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
         valid_data = np.load(FLAGS.data_dir + FLAGS.valid_data)
         # generate raw_data and corrupt_data
-        input_train, label_train = generate_input_and_label(
-            train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
-        input_valid, label_valid = generate_input_and_label(
-            valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
+        input_train, label_train = utils.generate_input_and_label(
+            train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
+        input_valid, label_valid = utils.generate_input_and_label(
+            valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
         # data normalization
         Norm_er = utils.Norm()
         input_train = Norm_er.data_normalization(input_train)[:, :, :, 0:5]
@@ -184,8 +161,6 @@ def main(_):
                     losses, sep_loss, global_step = model.step(
                         sess, input_train_batch, label_train_batch)
                     train_loss_sum += losses
-                    if FLAGS.if_norm_label:
-                        sep_loss = Norm_er.data_recover(sep_loss)
                     train_sep_loss_sum += sep_loss
                 global_ephoch = int(global_step // train_num_batch)
 

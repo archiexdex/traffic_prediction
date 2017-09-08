@@ -19,9 +19,9 @@ tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
                            "validation data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v4/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v4/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
@@ -98,14 +98,14 @@ def main(_):
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
         valid_data = np.load(FLAGS.data_dir + FLAGS.valid_data)
         # generate raw_data and corrupt_data
-        input_train, label_train = utils.generate_input_and_label(
+        input_train, label_train, _ = utils.generate_input_and_label(
             train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
-        input_valid, label_valid = utils.generate_input_and_label(
+        input_valid, label_valid, _ = utils.generate_input_and_label(
             valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
         # data normalization
         Norm_er = utils.Norm()
-        input_train = Norm_er.data_normalization(input_train)[:, :, :, 0:5]
-        input_valid = Norm_er.data_normalization(input_valid)[:, :, :, 0:5]
+        input_train = Norm_er.data_normalization(input_train)
+        input_valid = Norm_er.data_normalization(input_valid)
         if FLAGS.if_norm_label:
             label_train = Norm_er.data_normalization(label_train)[:, :, :, 1:4]
             label_valid = Norm_er.data_normalization(label_valid)[:, :, :, 1:4]

@@ -48,6 +48,8 @@ class Norm(object):
 
 def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random_vd'):
     print('all_data.shape:', all_data.shape)
+    # corrupt_list
+    corrupt_list = []
     # data augmentation
     aug_data = []
     for one_data in all_data:
@@ -62,19 +64,29 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random
                                                size=corrupt_amount)
             corrupt_target = np.stack(
                 [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
-            # corrupt target as [time, 0, 0, 0, weekday, missing=True]
+            # corrupt target as [0, 0, 0, time, weekday]
             for target in corrupt_target:
                 one_data[target[0], target[1], 1:4] = 0.0
-                one_data[target[0], target[1], -1] = True
+            # save corrupt target
+            corrupt_list.append(corrupt_target)
         corrupt_data = aug_data
     elif policy == 'random_vd':
         # randomly corrupt 5 target vd
         for one_data in aug_data:
-            corrupt_target = np.random.randint(
-                all_data.shape[1], size=corrupt_amount // 12)
-            # corrupt target as [time, 0, 0, 0, weekday, missing=True]
-            one_data[corrupt_target, :, 1:4] = 0.0
-            one_data[corrupt_target, :, -1] = True
+            corrupt_tmp = []
+            corrupt_target = np.random.randint(all_data.shape[1], size=corrupt_amount//12)
+            # corrupt target as [0, 0, 0, time, weekday]
+            for target in corrupt_target:
+                # random start time and end time
+                corrupt_target_range = np.random.randint(6, size=2)
+                print(one_data[corrupt_target, :, :])
+                print("@@")
+                one_data[corrupt_target, corrupt_target_range[0]:corrupt_target_range[1]+6, 1:4] = 0.0
+                print(one_data[corrupt_target, :, :])
+                input("!")
+                corrupt_tmp.append([target, corrupt_target_range[0], corrupt_target_range[1]+6])
+            # save corrupt target
+            corrupt_list.append(corrupt_tmp)
         corrupt_data = aug_data
 
-    return corrupt_data, raw_data
+    return corrupt_data, raw_data, corrupt_list

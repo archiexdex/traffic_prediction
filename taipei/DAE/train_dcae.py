@@ -19,9 +19,9 @@ tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
                            "validation data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v0/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v0/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
@@ -32,10 +32,10 @@ tf.app.flags.DEFINE_integer('corrupt_amount', 60,
                             "the amount of corrupted data")
 # training parameters
 FILTER_NUMBERS = [32, 64, 128]
-FILTER_STRIDES = [1, 2, 2]
+FILTER_STRIDES = [1,  2,   2]
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 100,
+tf.app.flags.DEFINE_integer('total_epoches', 150,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
@@ -71,6 +71,7 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
+        self.if_norm_label = FLAGS.if_norm_label
         self.if_label_normed = FLAGS.if_label_normed
         self.if_mask_only = FLAGS.if_mask_only
 
@@ -88,6 +89,7 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
+        print("if_norm_label:", self.if_norm_label)
         print("if_label_normed:", self.if_label_normed)
         print("if_mask_only:", self.if_mask_only)
 
@@ -104,8 +106,8 @@ def main(_):
             valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
         # data normalization
         Norm_er = utils.Norm()
-        input_train = Norm_er.data_normalization(input_train)
-        input_valid = Norm_er.data_normalization(input_valid)
+        input_train = Norm_er.data_normalization(input_train)[:, :, :, :6]
+        input_valid = Norm_er.data_normalization(input_valid)[:, :, :, :6]
         if FLAGS.if_norm_label:
             label_train = Norm_er.data_normalization(label_train)[:, :, :, 1:4]
             label_valid = Norm_er.data_normalization(label_valid)[:, :, :, 1:4]
@@ -179,12 +181,12 @@ def main(_):
                 end_time = time.time()
 
                 # logging per ephoch
-                print("%d epoches, %d steps, mean train loss: %f, valid mean loss: %f, time cost: %f(sec/batch)" %
+                print("%d epoches, %d steps, mean train loss: %f, valid mean loss: %f, step cost: %f(sec)" %
                       (global_ephoch,
                        global_step,
                        train_loss_sum / train_num_batch,
                        valid_loss_sum / valid_num_batch,
-                       (end_time - start_time) / train_num_batch))
+                       (end_time - start_time)))
                 print("%f density_loss, %f flow_loss, %f speed_loss" %
                       (train_sep_loss_sum[0] / train_num_batch,
                        train_sep_loss_sum[1] / train_num_batch,

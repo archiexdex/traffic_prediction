@@ -64,10 +64,10 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random
                                                size=corrupt_amount)
             corrupt_target = np.stack(
                 [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
-            # corrupt target as [0, 0, 0, time, weekday]
+            # corrupt target as [time, 0, 0, 0, weekday, missing=True]
             for target in corrupt_target:
                 one_data[target[0], target[1], 1:4] = 0.0
-            # save corrupt target
+                one_data[target[0], target[1], 5] = 1
             corrupt_list.append(corrupt_target)
         corrupt_data = aug_data
     elif policy == 'random_vd':
@@ -79,11 +79,8 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random
             for target in corrupt_target:
                 # random start time and end time
                 corrupt_target_range = np.random.randint(6, size=2)
-                print(one_data[corrupt_target, :, :])
-                print("@@")
-                one_data[corrupt_target, corrupt_target_range[0]:corrupt_target_range[1]+6, 1:4] = 0.0
-                print(one_data[corrupt_target, :, :])
-                input("!")
+                one_data[target, corrupt_target_range[0]:corrupt_target_range[1]+6+1, 1:4] = 0.0
+                one_data[target, corrupt_target_range[0]:corrupt_target_range[1]+6+1, 5] = 1
                 corrupt_tmp.append([target, corrupt_target_range[0], corrupt_target_range[1]+6])
             # save corrupt target
             corrupt_list.append(corrupt_tmp)

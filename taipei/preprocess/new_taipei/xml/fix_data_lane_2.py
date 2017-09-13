@@ -24,6 +24,8 @@ parser.add_argument("--is_allow_offset", action='store', dest='is_allow_offset',
                     help="set 0 means process won't check how long (0,0,0) exist. Default is 1.")
 parser.add_argument("--long_period", action='store', dest='long_period', type=int,
                     help="1 means time = mode * 1 e.g. long_period = 1 and mode = 5 means if there are more than 5 minutes data be [0, 0, 0], we will mask it")
+parser.add_argument("--is_append_mask", action='store', dest='is_append_mask', type=int,
+                    help="is append mask channel in train data")
 args = parser.parse_args()
 # choose 1 or 5 to fix different mode data
 mode = 5
@@ -42,6 +44,8 @@ if args.is_allow_offset != None:
     is_allow_offset = args.is_allow_offset
 if args.long_period != None:
     long_period = args.long_period
+if args.is_append_mask != None:
+    is_append_mask = args.is_append_mask
 
 # 2015/12/01 00:00:00 ~ 2017/07/31 23:55:00
 start_time = time.mktime(datetime.datetime.strptime(
@@ -105,15 +109,15 @@ def check_data(path):
 
         # It may occur when data has duplicate time or begging time is lower
         # than start_time
-        if i < data.shape[0] and now > item[0] + time_padding:
+        if i < data.shape[0] and abs(item[0] - now) <= time_padding:
             i += 1
             continue
         # It may occur when data has missing data
-        elif i >= data.shape[0] or item[0] > now + time_padding:
+        elif i >= data.shape[0] or abs(item[0] - now) <= time_padding:
             if is_append_mask == 0:
                 fix_data[ptr] = [now, 0, 0, 0, get_week(now)]
             elif is_append_mask == 1 :
-                fix_data[ptr] = [now, 0, 0, 0, get_week(now), 0]
+                fix_data[ptr] = [now, 0, 0, 0, get_week(now), 0, now]
             mask_list[ptr] = 1
             ptr += 1
 
@@ -131,6 +135,7 @@ def check_data(path):
 
             if is_append_mask == 1:
                 item.append(0)
+                item.append(now)
             fix_data[ptr] = item
             ptr += 1
             i += 1

@@ -52,6 +52,7 @@ def main():
     # load vd list and load vd group lane 
     target_vd_list   = {}
     vd_grp_lane_list = {}
+    k = 0
     with codecs.open(traget_vd_filename, 'r', 'utf-8') as fp:
         target_vd_list = json.load(fp)
     with codecs.open(vd_grp_lane_filename, 'r', 'utf-8') as fp:
@@ -62,6 +63,11 @@ def main():
     train_mask = []
     for vd in target_vd_list["train"]:
         for grp in vd_grp_lane_list[vd]:
+            
+            # Show train VD order
+            if is_log == 1:
+                print(k, vd, grp)
+                k += 1
             vd_filenme       = DATA_PATH + "5/fix_data_group/" + vd + "_" + grp + ".npy"
             mask_filename    = DATA_PATH + "5/mask_group/"     + vd + "_" + grp + ".npy"
             outlier_filename = DATA_PATH + "5/mask_outlier/"   + vd + "_" + grp + ".npy"
@@ -167,7 +173,7 @@ def main():
         #     if len(item) > 0:
         #         label_size += 1
         # if train_size <= 0 and label_size <= 0:
-        if len(train) <= 0 and len(label) <= 0:
+        if len(train) <= 0:# and len(label) <= 0:
             input_organized_data.append(train_data[:, i:i + 12, :])
             label_organized_data.append(label_data[:, i + 12, :])
 
@@ -199,7 +205,7 @@ def main():
     #     label_mask_organized_data, [label_mask_organized_data.shape[0] * 8 // 10, label_mask_organized_data.shape[0] * 9 // 10])
 
     # change time in order to draw data easily
-    test_label[:, :, 0] = test_label[:, :, 0] * 300 + START_TIME   
+    # test_label[:, :, 0] = test_label[:, :, 0] * 300 + START_TIME   
 
     np.save(DATA_PATH + 'train_label.npy', train_label)
     np.save(DATA_PATH + 'test_label.npy', test_label)

@@ -11,6 +11,7 @@ from __future__ import print_function
 
 import os
 import codecs
+import time
 import json
 import datetime
 import numpy as np
@@ -36,6 +37,7 @@ FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/NEW_
 # DRAW VD
 FILE_NAMES = ['VQGFY01_1', 'VPJFZ00_1', 'VMUGG20_0']
 
+start_time = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
 
 def generate_data_on_plane(weights, inputs):
     """
@@ -232,6 +234,8 @@ def main():
         print('removed_rate: %f %%' % (100 * num_outliers /
                                        (all_losses_np.shape[0] * all_losses_np.shape[1])))
 
+        end_time   = time.mktime( datetime.datetime.strptime("2017-08-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
+        print(end_time-start_time)
 
 if __name__ == '__main__':
     if not os.path.exists(FOLDER_PATH):

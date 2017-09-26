@@ -92,7 +92,7 @@ def get_hour(timestamp):
 def check_data(path):
     data = np.load(path)
     fix_data = [0] * data_size
-    mask_list = [0] * data_size
+    mask_list = np.zeros(data_size, dtype=np.int)
     now = start_time
     ptr = 0
     i = 0
@@ -109,33 +109,40 @@ def check_data(path):
 
         # It may occur when data has duplicate time or begging time is lower
         # than start_time
-        if i < data.shape[0] and abs(item[0] - now) <= time_padding:
+        if item != [] and item[0] < now - time_padding:
+            # print(item[0], now)
+            # input("!")
             i += 1
             continue
         # It may occur when data has missing data
-        elif i >= data.shape[0] or abs(item[0] - now) <= time_padding:
+        elif (item != [] and now + time_padding < item[0]) or item == []:
+            # print(item[0], now)
+            # input("@")
             if is_append_mask == 0:
                 fix_data[ptr] = [now, 0, 0, 0, get_week(now)]
             elif is_append_mask == 1 :
-                fix_data[ptr] = [now, 0, 0, 0, get_week(now), 0, now]
+                fix_data[ptr] = [now, 0, 0, 0, get_week(now), 1, now]
             mask_list[ptr] = 1
             ptr += 1
 
-        else:
+        elif item != []:
             # To check if [density, flow, speed] is [0, 0, 0] and continue in
             # long_period, then they are missing data
             if is_allow_offset == 1:
-                if item[1:1 + 3] == [0, 0, 0] and (8 <= get_hour(item[0]) and get_hour(item[0]) <= 22):
+                # start from 00:00 to 23:55
+                if item[1:1 + 3] == [0, 0, 0]:# and (0 <= get_hour(now) and get_hour(now) <= 23):
                     count += 1
                 else:
                     if count > long_period:
+                        mask_list[ptr-count:ptr] = 1
                         for k in range(count):
-                            mask_list[ptr - k - 1] = 1
-                        count = 0
+                            fix_data[ptr-k-1][5] = 1
+                    count = 0
 
             if is_append_mask == 1:
                 item.append(0)
                 item.append(now)
+            item[0] = now
             fix_data[ptr] = item
             ptr += 1
             i += 1

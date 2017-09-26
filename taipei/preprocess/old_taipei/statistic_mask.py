@@ -20,7 +20,7 @@ from functools import reduce
 
 is_log = 0
 
-DATA_PATH = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/"
+DATA_PATH = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/"
 TOLERANCE = 0
 START_TIME = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
 st_time = datetime.datetime.now()
@@ -55,9 +55,9 @@ def main():
                 print(k, vd, grp)
                 k += 1
             
-            vd_filenme       = DATA_PATH + "5/fix_data_group/" + vd + "_" + grp + ".npy"
-            mask_filename    = DATA_PATH + "5/mask_group/"     + vd + "_" + grp + ".npy"
-            outlier_filename = DATA_PATH + "5/mask_outlier/"   + vd + "_" + grp + ".npy"
+            vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
+            mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
+            outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
 
             vd_file      = np.load(vd_filenme)
             mask_file    = np.load(mask_filename)
@@ -128,10 +128,9 @@ def main():
             H = int( datetime.datetime.fromtimestamp(now).timetuple()[3] )
             M = int( datetime.datetime.fromtimestamp(now).timetuple()[4] )
 
-            vd_time_list[int(jdx/(12*24) )][idx][H * 12 + int(M // 5)] += jtem[5]
+            vd_time_list[int(jdx/(12*24) )][idx][H * 12 + int(M // 5)] += train_mask[idx][jdx]
+            
         
-        # print(vd_time_list[idx])
-        # input("!")
     np.save(DATA_PATH + "vd_time_mask_alltime.npy", vd_time_list)
     ed_time = datetime.datetime.now()
     print("Finishing...", ed_time - st_time)

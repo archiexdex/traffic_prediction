@@ -64,23 +64,12 @@ class DCAEModel(object):
         # print(tf.trainable_variables())
         self.__train_op = optimizer.minimize(
             self.__loss, global_step=self.__global_step)
-        
+
         # summary
         self.__merged_op = tf.summary.merge_all()
         # summary writer
         self.train_summary_writer = tf.summary.FileWriter(
             self.log_dir + 'train', graph=graph)
-
-        # save parameter
-        tf.add_to_collection("global_step", self.__global_step)
-        tf.add_to_collection("model", self.__logits)
-        tf.add_to_collection("loss", self.__loss)
-        tf.add_to_collection("sep_loss", self.__sep_loss)
-        tf.add_to_collection("train", self.__train_op)
-        tf.add_to_collection("merged_op", self.__merged_op)
-
-        for i in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='DAE'):
-            print(i)
 
     def __inference(self, corrupt_data, filter_numbers, filter_strides):
         """ construct the AutoEncoder model
@@ -102,60 +91,59 @@ class DCAEModel(object):
         print("corrupt_data:", corrupt_data)
         shapes_list = []
         # encoder
-        with tf.variable_scope("DAE") as out_scope:
-            current_input = corrupt_data
-            for layer_id, out_filter_amount in enumerate(filter_numbers):
-                with tf.variable_scope('conv' + str(layer_id)) as scope:
-                    # shape
-                    shapes_list.append(current_input.get_shape().as_list())
-                    in_filter_amount = current_input.get_shape().as_list()[3]
-                    # init
-                    kernel_init = tf.truncated_normal_initializer(
-                        mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-                    bias_init = tf.random_normal_initializer(
-                        mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-                    W = tf.get_variable(name='weights', shape=[
-                                        3, 3, in_filter_amount, out_filter_amount], initializer=kernel_init)
-                    b = tf.get_variable(
-                        name='bias', shape=out_filter_amount, initializer=bias_init)
-                    # conv
-                    stide = filter_strides[layer_id]
-                    output = lrelu(
-                        tf.add(tf.nn.conv2d(
-                            input=current_input, filter=W, strides=[1, stide, stide, 1], padding='SAME'), b))
-                    current_input = output
-                    print(scope.name, output)
+        current_input = corrupt_data
+        for layer_id, out_filter_amount in enumerate(filter_numbers):
+            with tf.variable_scope('conv' + str(layer_id)) as scope:
+                # shape
+                shapes_list.append(current_input.get_shape().as_list())
+                in_filter_amount = current_input.get_shape().as_list()[3]
+                # init
+                kernel_init = tf.truncated_normal_initializer(
+                    mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+                bias_init = tf.random_normal_initializer(
+                    mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+                W = tf.get_variable(name='weights', shape=[
+                                    3, 3, in_filter_amount, out_filter_amount], initializer=kernel_init)
+                b = tf.get_variable(
+                    name='bias', shape=out_filter_amount, initializer=bias_init)
+                # conv
+                stide = filter_strides[layer_id]
+                output = lrelu(
+                    tf.add(tf.nn.conv2d(
+                        input=current_input, filter=W, strides=[1, stide, stide, 1], padding='SAME'), b))
+                current_input = output
+                print(scope.name, output)
 
-            # print('shapes_list:', shapes_list)
-            # reverse order for decoder part
-            shapes_list.reverse()
-            filter_strides.reverse()
+        # print('shapes_list:', shapes_list)
+        # reverse order for decoder part
+        shapes_list.reverse()
+        filter_strides.reverse()
 
-            # decoder
-            for layer_id, layer_shape in enumerate(shapes_list):
-                with tf.variable_scope('deconv' + str(layer_id)) as scope:
-                    # shape
-                    in_filter_amount = current_input.get_shape().as_list()[3]
-                    if layer_id == len(shapes_list) - 1:
-                        out_filter_amount = 3  # only regress 3 dims as [d, f, s]
-                    else:
-                        out_filter_amount = layer_shape[3]
-                    # init
-                    kernel_init = tf.truncated_normal_initializer(
-                        mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-                    bias_init = tf.random_normal_initializer(
-                        mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-                    W = tf.get_variable(name='weights', shape=[
-                                        3, 3, out_filter_amount, in_filter_amount], initializer=kernel_init)
-                    b = tf.get_variable(
-                        name='bias', shape=out_filter_amount, initializer=bias_init)
-                    # deconv
-                    stide = filter_strides[layer_id]
-                    output = lrelu(
-                        tf.add(tf.nn.conv2d_transpose(
-                            value=current_input, filter=W, output_shape=tf.stack([layer_shape[0], layer_shape[1], layer_shape[2], out_filter_amount]), strides=[1, stide, stide, 1], padding='SAME'), b))
-                    current_input = output
-                    print(scope.name, output)
+        # decoder
+        for layer_id, layer_shape in enumerate(shapes_list):
+            with tf.variable_scope('deconv' + str(layer_id)) as scope:
+                # shape
+                in_filter_amount = current_input.get_shape().as_list()[3]
+                if layer_id == len(shapes_list) - 1:
+                    out_filter_amount = 3  # only regress 3 dims as [d, f, s]
+                else:
+                    out_filter_amount = layer_shape[3]
+                # init
+                kernel_init = tf.truncated_normal_initializer(
+                    mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+                bias_init = tf.random_normal_initializer(
+                    mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+                W = tf.get_variable(name='weights', shape=[
+                                    3, 3, out_filter_amount, in_filter_amount], initializer=kernel_init)
+                b = tf.get_variable(
+                    name='bias', shape=out_filter_amount, initializer=bias_init)
+                # deconv
+                stide = filter_strides[layer_id]
+                output = lrelu(
+                    tf.add(tf.nn.conv2d_transpose(
+                        value=current_input, filter=W, output_shape=tf.stack([layer_shape[0], layer_shape[1], layer_shape[2], out_filter_amount]), strides=[1, stide, stide, 1], padding='SAME'), b))
+                current_input = output
+                print(scope.name, output)
 
         if self.if_label_normed:
             with tf.name_scope('recover_logits_scale'):

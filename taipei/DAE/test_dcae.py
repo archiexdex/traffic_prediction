@@ -45,10 +45,8 @@ tf.app.flags.DEFINE_integer('aug_ratio', 1,
 tf.app.flags.DEFINE_integer('corrupt_amount', 100,
                             "the amount of corrupted data")
 # training parameters
-FILTER_NUMBERS = [64, 128, 256, 512, 1024]
-FILTER_STRIDES = [1, 2, 2, 2, 2]
-# FILTER_NUMBERS = [32, 64, 128]
-# FILTER_STRIDES = [1, 2, 2]
+FILTER_NUMBERS = [32, 64, 128]
+FILTER_STRIDES = [1, 2, 2]
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
 tf.app.flags.DEFINE_integer('total_epoches', 100,
@@ -274,10 +272,10 @@ def main(_):
             # draw the result
             # plot_result_cmp_label(result_all, train_data, corrupt_list)
             # fix data
-            train_data = merge_result_with_label(
-                result_all, train_data, corrupt_list)
-            np.save(FLAGS.data_dir + "fix_" + FLAGS.train_data, train_data)
-            print(FLAGS.data_dir + "fix_" + FLAGS.train_data + " saved!!")
+            # train_data = merge_result_with_label(
+            #     result_all, train_data, corrupt_list)
+            # np.save(FLAGS.data_dir + "fix_" + FLAGS.train_data, train_data)
+            # print(FLAGS.data_dir + "fix_" + FLAGS.train_data + " saved!!")
 
 
 if __name__ == "__main__":

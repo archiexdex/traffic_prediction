@@ -27,7 +27,7 @@ class TFPModel(object):
         self.test_shape    = config.test_shape
         self.is_test       = config.is_test
 
-        if self.is_test == False:
+        if not self.is_test:
             self.parameter_saver = parameter_saver.Parameter_saver(
                 "2 dimension CNN")
             self.parameter_saver.add_parameter("batch_size", self.batch_size)
@@ -43,7 +43,7 @@ class TFPModel(object):
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[
             None, self.train_shape[1], self.train_shape[2], self.train_shape[3]], name='input_data')
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-            None, self.test_shape[1]], name='label_data')
+            None, self.test_shape[1], self.test_shape[2]], name='label_data')
 
         optimizer = tf.train.AdamOptimizer(
             learning_rate=self.learning_rate)
@@ -173,7 +173,7 @@ class TFPModel(object):
             if self.is_test == False:
                 self.parameter_saver.add_layer("conv4_2", {"filter": 256, "kernel_size": [
                                            3, 3], "stride": 2, "padding": "same", "activation": "relu"})
-
+        
         with tf.variable_scope('fully1') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
@@ -197,7 +197,7 @@ class TFPModel(object):
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             fully2 = tf.contrib.layers.fully_connected(fully1,
-                                                       self.test_shape[1],
+                                                       self.test_shape[1]* self.test_shape[2],
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
                                                        biases_initializer=bias_init,
@@ -207,9 +207,15 @@ class TFPModel(object):
                 self.parameter_saver.add_layer(
                 "fully2", {"inputs": "fully1", "num_outputs": 29, "activation": "relu"})
 
+        with tf.variable_scope('reshape') as scope:
+            reshaped = tf.reshape(
+                fully2, [-1, 18, 4], name=scope.name)
+            print("reshape:", reshaped)
+
+
         if self.is_test == False:
             self.parameter_saver.save()
-        return fully2
+        return reshaped
 
     def loss_function(self, logits, labels):
         """

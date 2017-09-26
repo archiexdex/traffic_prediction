@@ -12,16 +12,18 @@ import parameter_saver
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
-tf.app.flags.DEFINE_string("train_data", "train_data.npy",
+tf.app.flags.DEFINE_string("train_data", "fix_train_data.npy",
                            "training data name")
-tf.app.flags.DEFINE_string("test_data", "test_data.npy",
+tf.app.flags.DEFINE_string("test_data", "fix_test_data.npy",
                            "testing data name")
 tf.app.flags.DEFINE_string("train_label", "train_label.npy",
                            "training label data name")
 tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
-tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
+tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
+# tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
+#                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'v3/checkpoints/',
                            "training checkpoints directory")
 tf.app.flags.DEFINE_string('log_dir', 'v3/log/',
@@ -35,7 +37,7 @@ tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
-tf.app.flags.DEFINE_float('learning_rate', 0.00001,
+tf.app.flags.DEFINE_float('learning_rate', 0.000001,
                           "learning rate of AdamOptimizer")
 tf.app.flags.DEFINE_integer('num_gpus', 2,
                             "multi gpu")
@@ -81,13 +83,12 @@ def main(_):
         # training loss saver
         loss_saver = parameter_saver.Training_loss_saver()
         loss_saver.add_parameter(
-            "description", "remove some bad VD train(VPJFZ00), label(VP8GI20, VP8GI60, VP8GX40, VMXH820) \
-                            fix bug")
+            "description", "input data come from DAE")
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :]
         test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]
-        train_label = np.load(FLAGS.data_dir + FLAGS.train_label)[:, :, 2]
-        test_label = np.load(FLAGS.data_dir + FLAGS.test_label)[:, :, 2]
+        train_label = np.load(FLAGS.data_dir + FLAGS.train_label)[:, :, :, 2]
+        test_label = np.load(FLAGS.data_dir + FLAGS.test_label)[:, :, :, 2]
         # number of batches
         train_num_batch = train_data.shape[0] // FLAGS.batch_size
         test_num_batch = test_data.shape[0] // FLAGS.batch_size

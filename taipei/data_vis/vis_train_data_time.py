@@ -29,17 +29,17 @@ if is_old:
 
 FOLDER_PATH = 'all_vds_alltime_new/'
 if is_old:
-    FOLDER_PATH = 'all_vds_alltime_old/'
+    FOLDER_PATH = 'train_data_time/'
 
 TRAIN_VD_LIST = os.path.join(DATA_PATH, 'train_vd_list.json')
-VD_TIME_MASK = os.path.join(DATA_PATH, 'vd_time_mask_alltime.npy')
+VD_TIME_LIST = os.path.join(DATA_PATH, 'train_vd_time_list.npy')
 
 def get_date(day):
     if is_old:
         return (datetime.date(2015, 1, 1) + datetime.timedelta(days=day)).strftime("%Y%m%d")
     return (datetime.date(2015, 12, 1) + datetime.timedelta(days=day)).strftime("%Y%m%d")
 
-def draw_discrete_heatmap(vd_name_list, data, day_idx):
+def draw_discrete_heatmap(data):
     """draw heatmap by the rate of each type of statistics, including mssing data rate, outliers rate, both above attribute rate
 
     Params
@@ -56,8 +56,7 @@ def draw_discrete_heatmap(vd_name_list, data, day_idx):
     ------
     nope
     """
-    target_data = data[day_idx]
-    time_range = [x * 5 for x in range(288)]
+    time_range = [x for x in range(1440)]
     time_list = []
     for time in time_range:
         hours = time // 60
@@ -65,20 +64,23 @@ def draw_discrete_heatmap(vd_name_list, data, day_idx):
         time_list.append('%d點%d分' % (hours, mins))
 
     # prepare vis
-    missing_trace = go.Heatmap(
-        x=time_list, y=vd_name_list, z=target_data, name='missing rate')
-    data = [missing_trace]
+    # Create a trace
+    trace = go.Scatter(
+        x = time_list,
+        y = data
+    )
 
+    data = [trace]
+    
     # Edit the layout
-    layout = dict(title="statistics of VD missings on day %s" % get_date(day_idx),
+    layout = dict(
                   xaxis=dict(title='Time'),
-                  yaxis=dict(title='VD Name'),
                   )
 
     fig = dict(data=data, layout=layout)
     # draw
     plotly.offline.plot(fig, filename=FOLDER_PATH +
-                        "statistics of VD missings on day %s.html" % get_date(day_idx), auto_open=False)
+                        "vd_time_list.html", auto_open=False)
 
 
 def main():
@@ -88,11 +90,11 @@ def main():
     vd_name_list = np.array(train_vd_list['train'])
 
     # read data (missing mask)
-    all_data = np.load(VD_TIME_MASK)
+    all_data = np.load(VD_TIME_LIST)
 
     # draw
-    for i in range(all_data.shape[0]):
-        draw_discrete_heatmap(vd_name_list, all_data, i)
+    
+    draw_discrete_heatmap(all_data)
 
 if __name__ == '__main__':
     if not os.path.exists(FOLDER_PATH):

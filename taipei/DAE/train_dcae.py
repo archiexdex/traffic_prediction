@@ -17,8 +17,10 @@ tf.app.flags.DEFINE_string("train_data", "train_data.npy",
                            "training data name")
 tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
                            "validation data name")
-tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
+tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
+# tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
+#                            "data directory")
 tf.app.flags.DEFINE_string('checkpoints_dir', 'v0/checkpoints/',
                            "training checkpoints directory")
 tf.app.flags.DEFINE_string('log_dir', 'v0/log/',
@@ -31,7 +33,7 @@ tf.app.flags.DEFINE_integer('aug_ratio', 4,
 tf.app.flags.DEFINE_integer('corrupt_amount', 60,
                             "the amount of corrupted data")
 # training parameters
-FILTER_NUMBERS = [32, 64, 128]
+FILTER_NUMBERS = [ 32, 64, 128]
 FILTER_STRIDES = [1,  2,   2]
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")

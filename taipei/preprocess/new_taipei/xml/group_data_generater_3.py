@@ -68,17 +68,18 @@ for vd in vd_grp_lane:
             else:
                 data += tmp_data
                 mask |= tmp_mask
-        
+                
         if flg:
             flg = False
             print("Don't exist", vd)
             break
         # timestamp density flow speed week
         #     0        1      2     3   4
-        data = np.array(data)
+        # data = np.array(data)
         # print(data.shape)
+        # print(data)
         data[:,0:0+2] /= grp_size
-        data[:,3:3+2] /= grp_size
+        data[:,3:]    /= grp_size
         np.save(data_save_path + vd + "_" + grp , data)
         np.save(mask_save_path + vd + "_" + grp , mask)
         

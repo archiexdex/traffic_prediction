@@ -9,6 +9,7 @@ import json
 import numpy as np
 import tensorflow as tf
 import model_dcae
+import utils
 import plotly
 plotly.tools.set_credentials_file(
     username="XDEX", api_key="GTWbfZgCXH6MQ1VOb9FO")
@@ -32,11 +33,11 @@ tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v6/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v6/log/',
                            "summary directory")
-tf.app.flags.DEFINE_string('restore_path', 'v1/checkpoints/model.ckpt-12800',
+tf.app.flags.DEFINE_string('restore_path', 'v6/checkpoints/model.ckpt-6400',
                            "path of saving model eg: checkpoints/model.ckpt-5")
 # data augmentation and corruption
 tf.app.flags.DEFINE_integer('aug_ratio', 1,
@@ -54,47 +55,14 @@ tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_float('learning_rate', 0.001,
                           "learning rate of AdamOptimizer")
+tf.app.flags.DEFINE_bool('if_norm_label', False,
+                         "if normalize label data")
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
-
-
-def data_normalization(data, file_name):
-    # normalize each dims [t, d, f, s, w]
-    key = ["time", "density", "flow", "speed", "week"]
-    norm = {}
-    with open("norm.json", "r") as fp:
-        norm = json.load(fp)
-    for i in range(5):
-        # temp_mean = np.mean(data[:, :, :, i])
-        # temp_std = np.std(data[:, :, :, i])
-        temp_mean = norm[file_name][key[i]][0]
-        temp_std = norm[file_name][key[i]][1]
-        data[:, :, :, i] = (data[:, :, :, i] - temp_mean) / temp_std
-        print(i, temp_mean, temp_std)
-    return data
-
-
-def generate_input_and_label(all_data, aug_ratio, corrupt_amount):
-    print('all_data.shape:', all_data.shape)
-    # data augmentation
-    aug_data = []
-    for one_data in all_data:
-        aug_data.append([one_data for _ in range(aug_ratio)])
-    aug_data = np.concatenate(aug_data, axis=0)
-    raw_data = np.array(aug_data[:, :, :, 1:4])  # only [d, f, s]
-    print('raw_data.shape:', raw_data.shape)
-    # randomly corrupt target data
-    for one_data in aug_data:
-        corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
-                                           size=corrupt_amount)
-        corrupt_target = np.stack(
-            [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
-        # corrupt target as [0, 0, 0, time, weekday]
-        for target in corrupt_target:
-            one_data[target[0], target[1], 1:4] = 0.0
-    corrupt_data = aug_data
-
-    return corrupt_data, raw_data
+tf.app.flags.DEFINE_bool('if_label_normed', True,
+                         "if label data normalized, we need to recover its scale back before compute loss")
+tf.app.flags.DEFINE_bool('if_mask_only', True,
+                         "if the loss computed on mask only")
 
 
 class TrainingConfig(object):
@@ -116,6 +84,9 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
+        self.if_norm_label = FLAGS.if_norm_label
+        self.if_label_normed = FLAGS.if_label_normed
+        self.if_mask_only = FLAGS.if_mask_only
 
     def show(self):
         print("filter_numbers:", self.filter_numbers)
@@ -131,71 +102,116 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
+        print("if_norm_label:", self.if_norm_label)
+        print("if_label_normed:", self.if_label_normed)
+        print("if_mask_only:", self.if_mask_only)
 
 
-def plot_result_cmp_label(results, labels):
+def plot_result_cmp_label(results, labels, corrupt_list):
     """
     """
-    START_TIME = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
-    i = 50
-    vd = 67
-    while i < i+101:
-        # Add data
-        target_result_flow = results[i, vd, :, 2]
-        target_time_list = []
-        for k in labels[i, vd, :, 0]:
-            target_time_list.append(datetime.datetime.fromtimestamp(k * 300 + START_TIME).strftime("%Y-%m-%d %H:%M:%S"))
-        # target_time_list   = datetime.datetime.fromtimestamp(labels[i, vd, :, 0] * 300 + START_TIME).strftime("%Y-%m-%d %H:%M:%S")
-        target_label_flow  = labels[i, vd, :, 3]
+    START_TIME = time.mktime(datetime.datetime.strptime(
+        "2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple())
+    i = 500
+    while i < results.shape[0]:
+        # vd = 67
+        # TODO: random_vd or random_data
+        target_corrupt_list = corrupt_list[i]
+        flg = 0
+        for idx, item in enumerate(target_corrupt_list):
+            vd, st_time, ed_time = item
+            # Add data
+            target_result_flow = results[i, vd, st_time:ed_time + 1, 2]
+            # for ptr in range(len(target_result_flow)):
+            #     if ptr < st_time or ed_time > ptr:
+            #         target_result_flow[ptr] = -1
+            target_label_flow = labels[i, vd, :, 3]
+            target_time_list = []
+            # if not ("08:00" <= datetime.datetime.fromtimestamp(labels[i, vd, 0, -1]).strftime("%H:%M")
+            #         and datetime.datetime.fromtimestamp(labels[i, vd, 0, -1]).strftime("%H:%M") <= "22:00"):
+            #     i += 1
+            #     flg = 1
+            #     break
 
+            for k in labels[i, vd, :, -1]:
+                target_time_list.append(datetime.datetime.fromtimestamp(
+                    k).strftime("%Y-%m-%d %H:%M:%S"))
+                print(k)
+            target_result_time = [it for kdx, it in enumerate(
+                target_time_list) if st_time <= kdx and kdx <= ed_time]
 
-        # Create and style traces
-        trace_flow = go.Scatter(
-            x=target_time_list,
-            y=target_result_flow,
-            name='Flow',
-            line=dict(
-                color=('rgb(255, 0, 0)'),
-                width=3)
-        )
+            # Create and style traces
+            trace_flow = go.Scatter(
+                x=target_result_time,
+                y=target_result_flow,
+                name='Flow',
+                line=dict(
+                    color=('rgb(255, 0, 0)'),
+                    width=3)
+            )
+
+            trace_label = go.Scatter(
+                x=target_time_list,
+                y=target_label_flow,
+                name='Label',
+                line=dict(
+                    color=('rgb(0, 255, 0)'),
+                    width=3)
+            )
+            data = [trace_flow, trace_label]
+
+            # Edit the layout
+            layout = dict(title="VD_ID_%d_DATA_ID_%d.html" % (vd, i),
+                          xaxis=dict(title='Time'),
+                          yaxis=dict(title='Value'),
+                          )
+
+            fig = dict(data=data, layout=layout)
+            if DRAW_ONLINE_FLAG:
+                py.plot(fig, filename=FOLDER_PATH +
+                        "VD_ID_%d_DATA_ID_%d.html" % (vd, i))
+            else:
+                plotly.offline.plot(
+                    fig, filename=FOLDER_PATH + "VD_ID_%d_DATA_ID_%d.html" % (vd, i))
+
         
-        trace_label = go.Scatter(
-            x=target_time_list,
-            y=target_label_flow,
-            name='Label',
-            line=dict(
-                color=('rgb(0, 255, 0)'),
-                width=3)
-        )
-        data = [trace_flow, trace_label]
+        print(i)
+        if flg == 0:
+            i += 1
+            input("!")
 
-        
-        # Edit the layout
-        layout = dict(title="VD_ID_%d_DATA_ID_%d.html" % (vd, i),
-                      xaxis=dict(title='Time'),
-                      yaxis=dict(title='Value'),
-                      )
 
-        fig = dict(data=data, layout=layout)
-        if DRAW_ONLINE_FLAG:
-            py.plot(fig, filename=FOLDER_PATH + "VD_ID_%d_DATA_ID_%d.html" % (vd, i))
-        else:
-            plotly.offline.plot(
-                fig, filename=FOLDER_PATH + "VD_ID_%d_DATA_ID_%d.html" % (vd, i))
+def merge_result_with_label(results, train_data, corrupt_list):
 
-        i += 1
-        input("!")
+    for i in range(results.shape[0]):
+        # print(i)
+        target_corrupt_list = corrupt_list[i]
+        for _, item in enumerate(target_corrupt_list):
+            vd, st_time, ed_time = item
+            # merge data
+            # [time, density, flow, speed, weak, mask, timestamp]
+            train_data[i, vd, st_time:ed_time + 1, 1:1 +
+                       3] = results[i, vd, st_time:ed_time + 1, 0:0 + 3]
+
+    return train_data
+
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
         # load data
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
         # generate many pollute data and pure data
-        polluted_train_input, pure_train_input = generate_input_and_label(
-            train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount)
+        polluted_train_input, pure_train_input, corrupt_list = utils.generate_input_and_label(
+            train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
         # data normalization
-        polluted_train_input = data_normalization(
-            polluted_train_input, "train")
+        Norm_er = utils.Norm()
+        polluted_train_input = Norm_er.data_normalization(polluted_train_input)[
+            :, :, :, :6]
+        if FLAGS.if_norm_label:
+            pure_train_input = Norm_er.data_normalization(pure_train_input)[
+                :, :, :, 1:4]
+        else:
+            pure_train_input = pure_train_input[:, :, :, 1:4]
 
         # number of batches
         train_num_batch = polluted_train_input.shape[0] // FLAGS.batch_size
@@ -220,36 +236,46 @@ def main(_):
                 print("Model restored:", FLAGS.restore_path)
             # prediction on test dataset
             result_all = []
-            test_loss_sum = 0
+            result_loss = []
+            result_loss_sum = 0
+            each_loss_sum = np.zeros(shape=[3], dtype=np.float)
             for b in range(train_num_batch):
                 batch_idx = b * FLAGS.batch_size
-                train_data_batch = polluted_train_input[batch_idx:batch_idx + FLAGS.batch_size]
-
+                train_data_batch = polluted_train_input[batch_idx:batch_idx +
+                                                        FLAGS.batch_size]
+                label_data_batch = pure_train_input[batch_idx:batch_idx +
+                                                    FLAGS.batch_size]
                 # train one batch
                 result = model.predict(sess, train_data_batch)
                 result_all.append(result)
 
-            result_all = np.array(result_all)
-            result_loss = []
-            result_loss_sum = 0
-            for b in range(train_num_batch):
-                batch_idx = b * FLAGS.batch_size
-                train_data_batch = polluted_train_input[batch_idx:batch_idx + FLAGS.batch_size]
-                label_data_batch = pure_train_input[batch_idx:batch_idx +
-                                                    FLAGS.batch_size]
-
-                loss = model.compute_loss(
+                # compute loss
+                loss, each_loss = model.compute_loss(
                     sess, train_data_batch, label_data_batch)
+
                 result_loss.append(loss)
                 result_loss_sum += loss
+                each_loss_sum += each_loss
+
+            result_all = np.array(result_all)
             result_loss = np.array(result_loss)
 
             print("test mean loss: %f" % (result_loss_sum / train_num_batch))
+            print("%f density_loss, %f flow_loss, %f speed_loss" %
+                  (each_loss_sum[0] / train_num_batch,
+                   each_loss_sum[1] / train_num_batch,
+                   each_loss_sum[2] / train_num_batch))
             result_all = np.reshape(
                 result_all, (result_all.shape[0] * result_all.shape[1], result_all.shape[2], result_all.shape[3], result_all.shape[4]))
             print(result_all.shape)
             print(train_data.shape)
-            plot_result_cmp_label(result_all, train_data)
+            # draw the result
+            # plot_result_cmp_label(result_all, train_data, corrupt_list)
+            # fix data
+            # train_data = merge_result_with_label(
+            #     result_all, train_data, corrupt_list)
+            # np.save(FLAGS.data_dir + "fix_" + FLAGS.train_data, train_data)
+            # print(FLAGS.data_dir + "fix_" + FLAGS.train_data + " saved!!")
 
 
 if __name__ == "__main__":

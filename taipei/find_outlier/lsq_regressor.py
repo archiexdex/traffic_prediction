@@ -11,6 +11,7 @@ from __future__ import print_function
 
 import os
 import codecs
+import time
 import json
 import datetime
 import numpy as np
@@ -28,14 +29,20 @@ from scipy.optimize import least_squares
 DRAW_VD_MODE = False
 OUTLIERS_THRSHOLD = 2
 
+is_old = False
+
 # PATH
 DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/fix_data_group/'
 MASK_SAVED_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/mask_outlier/'
+if is_old:
+    DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/fix_data/'
+    MASK_SAVED_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/mask_outlier/'
 FOLDER_PATH = '/home/jay/Desktop/traffic_flow_detection/taipei/find_outlier/NEW_AREA/'
 
 # DRAW VD
 FILE_NAMES = ['VQGFY01_1', 'VPJFZ00_1', 'VMUGG20_0']
 
+st_time = datetime.datetime.now()
 
 def generate_data_on_plane(weights, inputs):
     """
@@ -142,6 +149,8 @@ def lsq_regressor(raw_data, vd_name, if_vis=False, outlier_mask=None):
         target_data = raw_data
     target_data = np.array(target_data)
     density = target_data[:, 1]
+    if is_old:
+        density = target_data[:, 0]
     # normalization
     if np.std(density) == 0.0:
         density = np.zeros_like(density)
@@ -149,6 +158,9 @@ def lsq_regressor(raw_data, vd_name, if_vis=False, outlier_mask=None):
         density = np.divide(density - np.mean(density), np.std(density))
     flow = target_data[:, 2]
     speed = target_data[:, 3]
+    if is_old:
+        flow = target_data[:, 1]
+        speed = target_data[:, 2]
     # normalization
     if np.std(speed) == 0.0:
         speed = np.zeros_like(speed)
@@ -232,6 +244,8 @@ def main():
         print('removed_rate: %f %%' % (100 * num_outliers /
                                        (all_losses_np.shape[0] * all_losses_np.shape[1])))
 
+        ed_time = datetime.datetime.now()
+        print(ed_time-st_time)
 
 if __name__ == '__main__':
     if not os.path.exists(FOLDER_PATH):

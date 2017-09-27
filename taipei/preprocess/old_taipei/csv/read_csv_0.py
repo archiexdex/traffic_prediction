@@ -46,8 +46,8 @@ def check_time(tt):
     # tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst
     return tt[4] % 5 == 0 and tt[5] == 0
 
-vd_gps = np.load("../training_data/VD_GPS.npy").item()
-save_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/raw_data/"
+# vd_gps = np.load("../training_data/VD_GPS.npy").item()
+save_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/raw_data/"
 
 for file_name in file_name_list:
     file = open(root_path + file_name + ".csv")
@@ -107,16 +107,16 @@ for file_name in file_name_list:
                     data[key_old] = {}
                 
                 # Get correspondant GPS
-                gps = [-1, -1] if key_old not in vd_gps else vd_gps[key_old]
+                # gps = [-1, -1] if key_old not in vd_gps else vd_gps[key_old]
 
-                for i in count:
+                for k in count:
                     # print(density[i], speed[i], count[i])
-                    density[i] /= count[i]
-                    speed[i] /= count[i]
-                    if i not in data[key_old]:
-                        data[key_old][i] = [[density[i], flow[i], speed[i], week, timestamp, gps[0], gps[1] ] ]
+                    density[k] /= count[k]
+                    speed[k] /= count[k]
+                    if k not in data[key_old]:
+                        data[key_old][k] = [[timestamp, density[k], flow[k], speed[k], week, 0, timestamp ] ]
                     else :
-                        data[key_old][i].append([density[i], flow[i], speed[i], week, timestamp, gps[0], gps[1] ])
+                        data[key_old][k].append([timestamp, density[k], flow[k], speed[k], week, 0, timestamp ])
 
                 density = {}
                 flow = {}

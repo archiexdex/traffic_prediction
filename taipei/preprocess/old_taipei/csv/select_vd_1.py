@@ -3,7 +3,7 @@ import os
 import json
 import types
 
-file_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/"
+file_path = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/"
 
 file_name_list  =  ["20150101000000_20150112000000",
                     "20150112000000_20150212000000",
@@ -39,9 +39,9 @@ file_name_list  =  ["20150101000000_20150112000000",
 
 data = {}
 vd_list = []
-with open(file_path + "selected_vd.json") as fp:
+with open( os.path.join(file_path, "vd_base/target_vd_list.json") ) as fp:
     tmp = json.load(fp)
-    vd_list = tmp["all_vd"]
+    vd_list = tmp["total"]
 
 print(len(vd_list))
 
@@ -77,6 +77,14 @@ for file_name in file_name_list:
     
 print("max:", ma)
 
+SAVE_PATH = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/raw_data/"
+
+for vd in data:
+    for grp in data[vd]:
+        target_name = str(vd) + "_" + str(grp)
+        np.save(SAVE_PATH + target_name, data[vd][grp])
+    
+exit()
 with open(file_path + 'miss_vd_list.json', 'w') as fp:
     json.dump(miss_vd_list, fp)
 

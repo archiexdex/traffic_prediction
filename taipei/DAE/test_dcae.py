@@ -31,18 +31,20 @@ tf.app.flags.DEFINE_string("train_label", "train_label.npy",
                            "training label data name")
 tf.app.flags.DEFINE_string("test_label", "test_label.npy",
                            "testing label data name")
-tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
+tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v6/checkpoints/',
+# tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
+#                            "data directory")
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v6/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
                            "summary directory")
-tf.app.flags.DEFINE_string('restore_path', 'v6/checkpoints/model.ckpt-6400',
+tf.app.flags.DEFINE_string('restore_path', 'v1/checkpoints/model.ckpt-35700',
                            "path of saving model eg: checkpoints/model.ckpt-5")
 # data augmentation and corruption
 tf.app.flags.DEFINE_integer('aug_ratio', 1,
                             "the ratio of data augmentation")
-tf.app.flags.DEFINE_integer('corrupt_amount', 100,
+tf.app.flags.DEFINE_integer('corrupt_amount', 0.1,
                             "the amount of corrupted data")
 # training parameters
 FILTER_NUMBERS = [32, 64, 128]
@@ -202,7 +204,7 @@ def main(_):
         train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
         # generate many pollute data and pure data
         polluted_train_input, pure_train_input, corrupt_list = utils.generate_input_and_label(
-            train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
+            train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_data')
         # data normalization
         Norm_er = utils.Norm()
         polluted_train_input = Norm_er.data_normalization(polluted_train_input)[
@@ -221,19 +223,22 @@ def main(_):
             FILTER_NUMBERS, FILTER_STRIDES, polluted_train_input.shape)
         config.show()
         # model
-        model = model_dcae.DCAEModel(config, graph=graph)
+        # model = model_dcae.DCAEModel(config, graph=graph)
         # Add an op to initialize the variables.
-        init = tf.global_variables_initializer()
+        # init = tf.global_variables_initializer()
         # Add ops to save and restore all the variables.
-        saver = tf.train.Saver()
+        # saver = tf.train.Saver()
 
         # Session
         with tf.Session() as sess:
-            sess.run(init)
-            # restore model if exist
-            if FLAGS.restore_path is not None:
-                saver.restore(sess, FLAGS.restore_path)
-                print("Model restored:", FLAGS.restore_path)
+            
+            saver = tf.train.import_meta_graph( FLAGS.restore_path + '.meta')
+            saver.restore(sess, FLAGS.restore_path)
+
+            model_fn = tf.get_collection("model")[0]
+            loss_fn  = tf.get_collection("loss")[0]
+            sep_loss_fn = tf.get_collection("sep_loss")[0]
+            
             # prediction on test dataset
             result_all = []
             result_loss = []
@@ -246,25 +251,65 @@ def main(_):
                 label_data_batch = pure_train_input[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
                 # train one batch
-                result = model.predict(sess, train_data_batch)
+                result = sess.run(model_fn, feed_dict={"corrupt_data:0": train_data_batch})
                 result_all.append(result)
 
                 # compute loss
-                loss, each_loss = model.compute_loss(
-                    sess, train_data_batch, label_data_batch)
-
+                loss, each_loss = sess.run([loss_fn, sep_loss_fn], 
+                                feed_dict={"corrupt_data:0":train_data_batch, "raw_data:0":label_data_batch})
                 result_loss.append(loss)
                 result_loss_sum += loss
                 each_loss_sum += each_loss
+
+                # compute interpolation loss
+                inter_each_loss_sum = np.zeros(shape=[3], dtype=np.float)
+                
+                for i in range(train_data_batch.shape[0]):
+                    pollute_list = np.argwhere(train_data_batch[i][:,:,5] == 1)
+                    # print(pollute_list)
+                    vdno = -1
+                    each_loss = np.zeros(shape=[3], dtype=np.float)
+                    idx = 0
+                    for _ in range(len(pollute_list)):
+                        if idx == len(pollute_list):
+                            break
+                        tmp_list = []
+                        vdno, ctime = pollute_list[idx]
+                        sttime = ctime-1
+                        tmp_list.append(pollute_list[idx])
+                        jdx = idx + 1
+                        for _ in range(len(pollute_list)):
+                            if jdx == len(pollute_list):
+                                break
+                            if vdno == pollute_list[jdx][0] and ctime+1 == pollute_list[jdx][1]:
+                                tmp_list.append(pollute_list[jdx])
+                                ctime = pollute_list[jdx][1]
+                                jdx += 1
+                            else:
+                                break
+                        denominator = ctime + 1 - sttime
+                        base = train_data_batch[i][vdno,sttime, 1:1+3]
+                        delta = ( train_data_batch[i][vdno,ctime+1, 1:1+3] - base ) / denominator
+                        # print(train_data_batch[i][vdno, :, :])
+                        # print(vdno, ctime, sttime, denominator, base, delta, tmp_list )
+                        for ptr in tmp_list:
+                            each_loss += abs( ( base + delta * (ptr[1] - sttime) * denominator ) - label_data_batch[i][ptr[0],ptr[1], :] )
+                        idx = jdx
+                    each_loss /= len(pollute_list)
+                    inter_each_loss_sum += each_loss
 
             result_all = np.array(result_all)
             result_loss = np.array(result_loss)
 
             print("test mean loss: %f" % (result_loss_sum / train_num_batch))
-            print("%f density_loss, %f flow_loss, %f speed_loss" %
+            print("test %f density_loss, %f flow_loss, %f speed_loss" %
                   (each_loss_sum[0] / train_num_batch,
                    each_loss_sum[1] / train_num_batch,
                    each_loss_sum[2] / train_num_batch))
+            print("linear %f density_loss, %f flow_loss, %f speed_loss" %
+                  (inter_each_loss_sum[0] / train_num_batch,
+                   inter_each_loss_sum[1] / train_num_batch,
+                   inter_each_loss_sum[2] / train_num_batch))
             result_all = np.reshape(
                 result_all, (result_all.shape[0] * result_all.shape[1], result_all.shape[2], result_all.shape[3], result_all.shape[4]))
             print(result_all.shape)

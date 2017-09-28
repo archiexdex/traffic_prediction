@@ -46,7 +46,7 @@ class Norm(object):
 
 
 
-def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random_vd'):
+def generate_input_and_label(all_data, aug_ratio, corrupt_ratio, policy='random_vd'):
     print('all_data.shape:', all_data.shape)
     # corrupt_list
     corrupt_list = []
@@ -61,27 +61,27 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_amount, policy='random
         # randomly corrupt target data
         for one_data in aug_data:
             corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
-                                               size=corrupt_amount)
+                                               size= int( all_data.shape[1] * all_data.shape[2] * corrupt_ratio ) )
             corrupt_target = np.stack(
-                [corrupt_target // all_data.shape[2], corrupt_target % all_data.shape[2]], axis=1)
+                [corrupt_target // all_data.shape[2], corrupt_target % (all_data.shape[2]-2)], axis=1)
             # corrupt target as [time, 0, 0, 0, weekday, missing=True]
             for target in corrupt_target:
-                one_data[target[0], target[1], 1:4] = 0.0
-                one_data[target[0], target[1], 5] = 1
+                one_data[target[0], target[1]+1, 1:4] = 0.0
+                one_data[target[0], target[1]+1, 5] = 1
             corrupt_list.append(corrupt_target)
         corrupt_data = aug_data
     elif policy == 'random_vd':
         # randomly corrupt 5 target vd
         for one_data in aug_data:
             corrupt_tmp = []
-            corrupt_target = np.random.randint(all_data.shape[1], size=corrupt_amount//12)
+            corrupt_target = np.random.randint(all_data.shape[1], size=int( all_data.shape[1] * corrupt_ratio ) ) 
             # corrupt target as [0, 0, 0, time, weekday]
             for target in corrupt_target:
                 # random start time and end time
-                corrupt_target_range = np.random.randint(6, size=2)
-                one_data[target, corrupt_target_range[0]:corrupt_target_range[1]+6+1, 1:4] = 0.0
-                one_data[target, corrupt_target_range[0]:corrupt_target_range[1]+6+1, 5] = 1
-                corrupt_tmp.append([target, corrupt_target_range[0], corrupt_target_range[1]+6])
+                corrupt_target_range = np.random.randint(6, size=1)
+                one_data[target, corrupt_target_range[0]+1:11, 1:4] = 0.0
+                one_data[target, corrupt_target_range[0]+1:11, 5] = 1
+                corrupt_tmp.append([target, corrupt_target_range[0], 11])
             # save corrupt target
             corrupt_list.append(corrupt_tmp)
         corrupt_data = aug_data

@@ -53,6 +53,8 @@ class DAEModel(object):
         # model
         self._logits = self.__inference(
             self.__corrupt_data, self.filter_numbers, self.filter_strides)
+        print(self._logits)
+        exit()
         self.__loss, self.__sep_loss = self.__loss_function(
             self._logits, self.__raw_data)
         # add to summary
@@ -67,7 +69,7 @@ class DAEModel(object):
         self.__merged_op = tf.summary.merge_all()
         # summary writer
         self.train_summary_writer = tf.summary.FileWriter(
-            self.log_dir + 'train', graph=graph)
+            self.log_dir + 'DAE_train', graph=graph)
 
     def __get_var_list(self):
         """ 
@@ -258,36 +260,3 @@ class DAEModel(object):
         feed_dict = {self.__corrupt_data: inputs}
         result = sess.run(self._logits, feed_dict=feed_dict)
         return result
-
-
-class TestingConfig(object):
-    """
-    testing config
-    """
-
-    def __init__(self):
-        self.filter_numbers = [32, 64, 128]
-        self.filter_strides = [1, 2, 2]
-        self.batch_size = 256
-        self.total_epoches = 10
-        self.learning_rate = 0.001
-        self.log_dir = "test_log_dir/"
-        self.input_shape = [256, 100, 12, 5]
-
-
-def test():
-    with tf.Graph().as_default() as g:
-        config = TestingConfig()
-        model = DAEModel(config, graph=g)
-        # train
-        X = np.zeros(shape=[256, 100, 12, 5])
-        Y = np.zeros(shape=[256, 100, 12, 3])
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            for i in range(config.total_epoches):
-                loss, global_steps = model.step(sess, X, Y)
-                print('loss', loss)
-
-
-if __name__ == '__main__':
-    test()

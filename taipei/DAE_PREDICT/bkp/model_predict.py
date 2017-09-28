@@ -46,7 +46,7 @@ class TFPModel(object):
         self.merged_op = tf.summary.merge_all()
         # summary writer
         self.train_summary_writer = tf.summary.FileWriter(
-            self.log_dir + 'train', graph=graph)
+            self.log_dir + 'PREDICT_train', graph=graph)
 
     def __get_var_list(self):
         """ 
@@ -244,33 +244,3 @@ class TFPModel(object):
             grad_and_var = (grad, v)
             average_grads.append(grad_and_var)
         return average_grads
-
-
-class TestingConfig(object):
-    """
-    testing config
-    """
-
-    def __init__(self):
-        self.data_dir = "FLAGS.data_dir/"
-        self.checkpoints_dir = "FLAGS.checkpoints_dir/"
-        self.log_dir = "FLAGS.log_dir/"
-        self.batch_size = 256
-        self.total_epoches = 10
-        self.learning_rate = 0.001
-        self.num_gpus = 2
-
-
-def test():
-    with tf.Graph().as_default() as g:
-        model = TFPModel(TestingConfig(), graph=g)
-        # train
-        X = np.zeros(shape=[256, 60, 12, 7])
-        Y = np.zeros(shape=[256, 7])
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            model.step(sess, X, Y)
-
-
-if __name__ == "__main__":
-    test()

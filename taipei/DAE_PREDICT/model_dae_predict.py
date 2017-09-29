@@ -11,8 +11,6 @@ class DAE_TFP_Model(object):
     Denoising AutoEncoder + Traffic Flow Prediction
     A model -> DAE : data imputation on missing value
     B model -> TFP : traffic flow prediction
-    TODO : 
-        * recover dae output's 6 features with original data
     """
 
     def __init__(self, config, graph=None):
@@ -37,24 +35,27 @@ class DAE_TFP_Model(object):
         tf.train.import_meta_graph(
             config.restore_dae_path + '.meta')
         # dae_output: A model's last tensor (recovered data) as the input of B model
-        dae_output = graph.get_tensor_by_name('recover_logits_scale/add:0')
+        dae_output = graph.get_tensor_by_name('DAE/deconv2/sub:0')
         self.__global_step = tf.train.get_or_create_global_step(graph=graph)
 
         with tf.variable_scope('PREDICT'):
-            self.__batch_size = config.__batch_size
-            self.__log_dir = config.__log_dir
-            self.__learning_rate = config.__learning_rate
-            self.__label_shape = config.__label_shape
+            self.__batch_size = config.batch_size
+            self.__log_dir = config.log_dir
+            self.__learning_rate = config.learning_rate
+            self.__label_shape = config.label_shape
             # model IO : self.__X_ph -> A model -> B model -> self.__Y_ph
             self.__X_ph = graph.get_tensor_by_name('corrupt_data:0')
             self.__Y_ph = tf.placeholder(dtype=tf.float32, shape=[
-                None, config.__label_shape[1], config.__label_shape[2]], name='label_data')
+                None, config.label_shape[1], config.label_shape[2]], name='label_data')
             if not config.if_dae_recover_all:
                 dae_output = self.dae_recover_mask_only(
                     dae_output, self.__X_ph)
+            else:
+                dae_output = tf.concat(
+                    [self.__X_ph[:, :, :, 0:1], dae_output, self.__X_ph[:, :, :, 4:6]], axis=-1)
 
             optimizer = tf.train.AdamOptimizer(
-                __learning_rate=self.__learning_rate)
+                learning_rate=self.__learning_rate)
 
             self.__logits = self.__inference(dae_output)
             self.__each_vd_losses, self.__losses = self.__loss_function(
@@ -88,7 +89,12 @@ class DAE_TFP_Model(object):
         missing_mask = tf.cast(origin_data[:, :, :, -1], tf.bool)
         stacked_missing_mask = tf.stack(
             [missing_mask for _ in range(3)], axis=-1)
-        return tf.where(stacked_missing_mask, dae_out, origin_data[:, :, :, 1:4])
+        # data imputation from DAE output on those missing value (density, flow, speed)
+        imputed_data = tf.where(stacked_missing_mask,
+                                dae_out, origin_data[:, :, :, 1:4])
+        result = tf.concat(
+            [origin_data[:, :, :, 0:1], imputed_data, origin_data[:, :, :, 4:6]], axis=-1)
+        return result
 
     def __get_var_list(self):
         """ To get the TFP model's trainable variables.

@@ -31,15 +31,15 @@ tf.app.flags.DEFINE_string('log_dir', 'v3/log/',
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 5000,
+tf.app.flags.DEFINE_integer('total_epoches', 500,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
 tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
-tf.app.flags.DEFINE_float('learning_rate', 0.000001,
+tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           "learning rate of AdamOptimizer")
-tf.app.flags.DEFINE_integer('num_gpus', 2,
+tf.app.flags.DEFINE_integer('num_gpus', 1,
                             "multi gpu")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
@@ -95,7 +95,7 @@ def main(_):
         print(train_num_batch)
         print(test_num_batch)
         loss_saver.add_parameter("input_shape", train_data.shape)
-        loss_saver.add_parameter("test_shape", train_label.shape)
+        loss_saver.add_parameter("train_label", train_label.shape)
         # config setting
         config = ModelConfig(train_data.shape, train_label.shape)
         config.show()

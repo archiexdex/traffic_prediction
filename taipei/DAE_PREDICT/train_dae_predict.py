@@ -29,7 +29,7 @@ tf.app.flags.DEFINE_string('log_dir', 'v3/log/',
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 5000,
+tf.app.flags.DEFINE_integer('total_epoches', 500,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
@@ -42,7 +42,7 @@ tf.app.flags.DEFINE_string('restore_path', None,
 tf.app.flags.DEFINE_string('restore_dae_path', None,
                            "path of pretrained DAE model eg: DAE/checkpoints/model.ckpt-5")
 # training flags
-tf.app.flags.DEFINE_bool('if_train_all', True,
+tf.app.flags.DEFINE_bool('if_train_all', False,
                          "True, update A+B. Fasle, update B fix A")
 tf.app.flags.DEFINE_bool('if_dae_recover_all', False,
                          "True, dae output as predict input. False, dae output on mask position + original data.")
@@ -198,6 +198,8 @@ def main(_):
 
 
 if __name__ == "__main__":
+    if FLAGS.restore_dae_path is None:
+        raise AssertionError("FLAGS.restore_dae_path should not be None!!!")
     if not os.path.exists(FLAGS.checkpoints_dir):
         os.makedirs(FLAGS.checkpoints_dir)
 

@@ -1,7 +1,3 @@
-"""
-TODO
-* comment!
-"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -53,11 +49,7 @@ tf.app.flags.DEFINE_bool('if_dae_recover_all', False,
 
 
 class ModelConfig(object):
-    """
-    testing config
-    """
-
-    def __init__(self, train_shape, test_shape):
+    def __init__(self, label_shape):
         self.data_dir = FLAGS.data_dir
         self.checkpoints_dir = FLAGS.checkpoints_dir
         self.log_dir = FLAGS.log_dir
@@ -66,8 +58,7 @@ class ModelConfig(object):
         self.save_freq = FLAGS.save_freq
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
-        self.train_shape = train_shape
-        self.test_shape = test_shape
+        self.label_shape = label_shape
         self.if_train_all = FLAGS.if_train_all
         self.restore_dae_path = FLAGS.restore_dae_path
         self.if_dae_recover_all = FLAGS.if_dae_recover_all
@@ -81,8 +72,7 @@ class ModelConfig(object):
         print("save_freq:", self.save_freq)
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
-        print("train_shape:", self.train_shape)
-        print("test_shape:", self.test_shape)
+        print("label_shape:", self.label_shape)
         print("if_train_all:", self.if_train_all)
         print("restore_dae_path:", self.restore_dae_path)
         print("if_dae_recover_all:", self.if_dae_recover_all)
@@ -101,7 +91,7 @@ def main(_):
         print(train_num_batch)
         print(test_num_batch)
         # config setting
-        config = ModelConfig(train_data.shape, train_label.shape)
+        config = ModelConfig(train_label.shape)
         config.show()
         # model
         model = model_dae_predict.DAE_TFP_Model(config, graph=graph)

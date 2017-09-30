@@ -155,7 +155,7 @@ def main():
     label_organized_data = []
     label_mask_organized_data = []
     vd_time_list = np.zeros( 1440 )
-    for i in range(train_data.shape[1] - 12):
+    for i in range(train_data.shape[1] - 12 - 4):
 
         train = np.argwhere(train_mask[:, i:i + 12] == 1)
         label = np.argwhere(label_mask[:, i + 12:i + 12 + 4] == 1)
@@ -178,7 +178,8 @@ def main():
         #     if len(item) > 0:
         #         label_size += 1
         # if train_size <= 0 and label_size <= 0:
-        if len(train) <= 0 and len(label) <= 0:
+        # if len(train) <= 0 and len(label) <= 0:
+        if len(label) <= 0:
             input_organized_data.append(train_data[:, i:i + 12, :])
             label_organized_data.append(label_data[:, i + 12: i+12 + 4, :])
             
@@ -187,7 +188,6 @@ def main():
 
     input_organized_data = np.array(input_organized_data)
     label_organized_data = np.array(label_organized_data)
-    label_mask_organized_data = np.array(label_mask_organized_data)
     np.save(DATA_PATH + "train_vd_time_list", vd_time_list)
     
 
@@ -204,8 +204,8 @@ def main():
     train_data, test_data = np.split(
         input_organized_data, [input_organized_data.shape[0] * 9 // 10])
 
-    np.save(DATA_PATH + 'train_data.npy', train_data)
-    np.save(DATA_PATH + 'test_data.npy', test_data)
+    np.save(DATA_PATH + 'train_data_bad_train_good_label.npy', train_data)
+    np.save(DATA_PATH + 'test_data_bad_train_good_label.npy', test_data)
     print(train_data.shape)
     print(test_data.shape)
     print('data saved')
@@ -217,8 +217,8 @@ def main():
     # change time in order to draw data easily
     # test_label[:, :, 0] = test_label[:, :, 0] * 300 + START_TIME   
 
-    np.save(DATA_PATH + 'train_label.npy', train_label)
-    np.save(DATA_PATH + 'test_label.npy', test_label)
+    np.save(DATA_PATH + 'train_label_bad_train_good_label.npy', train_label)
+    np.save(DATA_PATH + 'test_label_bad_train_good_label.npy', test_label)
     # np.save(DATA_PATH + 'test_mask.npy', test_mask)
 
     print(train_label.shape)

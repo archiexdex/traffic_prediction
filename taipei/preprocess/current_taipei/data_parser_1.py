@@ -28,13 +28,18 @@ def main():
     # enumerate time from start_time to end_time
     while now != END_TIME:
         count += 5
-        now = get_next_time(count)
-        file_path = os.path.join( ROOT_PATH , (now.strftime("%Y%m%d_%H%M") + ".xml") )
-        
-        # try to get data from server
-        try:
-            xml_data = urllib.request.urlopen(file_path)
-        except: 
+        for noice in range(-1,2):
+            now = get_next_time(count+noice)
+            file_path = os.path.join( ROOT_PATH , (now.strftime("%Y%m%d_%H%M") + ".xml") )        
+            # try to get data from server
+            # if find the file successfully, break to do next thing
+            try:
+                xml_data = urllib.request.urlopen(file_path)
+                break
+            except: 
+                pass
+        # if can't load any file in that time, go to find next time file
+        else:
             print(file_path, " doesn't exists!!")
             continue
         

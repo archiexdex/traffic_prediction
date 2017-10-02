@@ -62,13 +62,15 @@ def generate_input_and_label(all_data, aug_ratio, corrupt_ratio, policy='random_
         for one_data in aug_data:
             corrupt_target = np.random.randint(all_data.shape[1] * all_data.shape[2],
                                                size= int( all_data.shape[1] * all_data.shape[2] * corrupt_ratio ) )
+            corrupt_tmp = []
             corrupt_target = np.stack(
                 [corrupt_target // all_data.shape[2], corrupt_target % (all_data.shape[2]-2)], axis=1)
             # corrupt target as [time, 0, 0, 0, weekday, missing=True]
             for target in corrupt_target:
                 one_data[target[0], target[1]+1, 1:4] = 0.0
                 one_data[target[0], target[1]+1, 5] = 1
-            corrupt_list.append(corrupt_target)
+                corrupt_tmp.append([target[0], target[1], target[1]+1])
+            corrupt_list.append(corrupt_tmp)
         corrupt_data = aug_data
     elif policy == 'random_vd':
         # randomly corrupt 5 target vd

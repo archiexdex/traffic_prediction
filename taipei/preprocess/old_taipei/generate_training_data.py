@@ -19,25 +19,11 @@ import matplotlib.pyplot as plt
 
 
 is_log = 0
+data_completion = '_train_50_label_100'
 
 DATA_PATH = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/"
 TOLERANCE = 0
 START_TIME = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
-
-def data_normalization(data, file_name):
-    # normalize each dims [d, f, s, w, t]
-    key = ["density", "flow", "speed", "week", "time"]
-    norm = {}
-    norm[file_name] = {}
-    for i in range(5):
-        temp_mean = np.mean(data[:, :, i])
-        temp_std = np.std(data[:, :, i])
-        data[:, :, i] = (data[:, :, i] - temp_mean) / temp_std
-        print(i, temp_mean, temp_std)
-        norm[file_name][key[i]] = [temp_mean, temp_std]
-    with open(DATA_PATH + "norm.json", 'w') as fp:
-        json.dump(norm, fp)
-    return data
 
 def get_day_minute(timestamp):
     H = int( datetime.datetime.fromtimestamp(timestamp).timetuple()[3] )
@@ -178,8 +164,8 @@ def main():
         #     if len(item) > 0:
         #         label_size += 1
         # if train_size <= 0 and label_size <= 0:
-        # if len(train) <= 0 and len(label) <= 0:
-        if len(label) <= 0:
+        if len(train) <= ( train_mask.shape[0] * 12 * 0.5 ) and len(label) <= 0:
+        # if len(label) <= 0:
             input_organized_data.append(train_data[:, i:i + 12, :])
             label_organized_data.append(label_data[:, i + 12: i+12 + 4, :])
             
@@ -204,8 +190,8 @@ def main():
     train_data, test_data = np.split(
         input_organized_data, [input_organized_data.shape[0] * 9 // 10])
 
-    np.save(DATA_PATH + 'train_data_bad_train_good_label.npy', train_data)
-    np.save(DATA_PATH + 'test_data_bad_train_good_label.npy', test_data)
+    np.save(DATA_PATH + 'train_data'  + data_completion + '.npy', train_data)
+    np.save(DATA_PATH + 'test_data'   + data_completion + '.npy', test_data)
     print(train_data.shape)
     print(test_data.shape)
     print('data saved')
@@ -217,8 +203,8 @@ def main():
     # change time in order to draw data easily
     # test_label[:, :, 0] = test_label[:, :, 0] * 300 + START_TIME   
 
-    np.save(DATA_PATH + 'train_label_bad_train_good_label.npy', train_label)
-    np.save(DATA_PATH + 'test_label_bad_train_good_label.npy', test_label)
+    np.save(DATA_PATH + 'train_label' + data_completion + '.npy', train_label)
+    np.save(DATA_PATH + 'test_label'  + data_completion + '.npy', test_label)
     # np.save(DATA_PATH + 'test_mask.npy', test_mask)
 
     print(train_label.shape)

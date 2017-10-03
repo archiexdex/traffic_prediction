@@ -12,19 +12,19 @@ import model_dae_predict
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
-tf.app.flags.DEFINE_string("train_data", "train_data_bad_train_good_label.npy",
+tf.app.flags.DEFINE_string("train_data", "train_data_train_0_label_100.npy",
                            "training data name")
-tf.app.flags.DEFINE_string("test_data", "test_data_bad_train_good_label.npy",
+tf.app.flags.DEFINE_string("test_data", "test_data_train_0_label_100.npy",
                            "testing data name")
-tf.app.flags.DEFINE_string("train_label", "train_label_bad_train_good_label.npy",
+tf.app.flags.DEFINE_string("train_label", "train_label_train_0_label_100.npy",
                            "training label data name")
-tf.app.flags.DEFINE_string("test_label", "test_label_bad_train_good_label.npy",
+tf.app.flags.DEFINE_string("test_label", "test_label_train_0_label_100.npy",
                            "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v3/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v4/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v3/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v4/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
@@ -97,6 +97,18 @@ def main(_):
         model = model_dae_predict.DAE_TFP_Model(config, graph=graph)
         # Add an op to initialize the variables.
         init = tf.global_variables_initializer()
+
+        # def __get_var_list():
+        #     """ To get the TFP model's trainable variables.
+        #     """
+        #     global_V = tf.global_variables()
+        #     theta_PREDICT = []
+        #     for _, v in enumerate(global_V):
+        #         if not v.name.startswith('DAE'):
+        #             theta_PREDICT.append(v)
+        #     return theta_PREDICT
+        # init = tf.variables_initializer(var_list=__get_var_list())
+
         # Add ops to save and restore all the variables.
         saver = tf.train.Saver()
         DAE_saver = tf.train.Saver(var_list=tf.get_collection(

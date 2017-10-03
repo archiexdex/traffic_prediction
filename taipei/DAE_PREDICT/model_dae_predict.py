@@ -1,6 +1,6 @@
 
-#TODO input normalization or batch normalization
-#TODO add MAPE evaluate fn
+# TODO input normalization or batch normalization
+# TODO add MAPE evaluate fn
 
 from __future__ import absolute_import
 from __future__ import division
@@ -133,8 +133,7 @@ class DAE_TFP_Model(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             conv1 = tf.layers.conv2d(inputs=inputs, filters=64, kernel_size=[3, 3],
                                      strides=1, padding='same', activation=tf.nn.relu,
-                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                     name=scope.name, reuse=scope.reuse)
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv1:", conv1)
         with tf.variable_scope('conv1_2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -143,8 +142,7 @@ class DAE_TFP_Model(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             conv1_2 = tf.layers.conv2d(inputs=conv1, filters=64, kernel_size=[3, 3],
                                        strides=1, padding='same', activation=tf.nn.relu,
-                                       kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                       name=scope.name, reuse=scope.reuse)
+                                       kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv1_2:", conv1_2)
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -153,8 +151,7 @@ class DAE_TFP_Model(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             conv2 = tf.layers.conv2d(inputs=conv1_2, filters=128, kernel_size=[3, 3],
                                      strides=2, padding='same', activation=tf.nn.relu,
-                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                     name=scope.name, reuse=scope.reuse)
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv2:", conv2)
         with tf.variable_scope('conv3') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -163,8 +160,7 @@ class DAE_TFP_Model(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3, 3],
                                      strides=1, padding='same', activation=tf.nn.relu,
-                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                     name=scope.name, reuse=scope.reuse)
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv3:", conv3)
         with tf.variable_scope('conv4') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -173,8 +169,7 @@ class DAE_TFP_Model(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             conv4 = tf.layers.conv2d(inputs=conv3, filters=256, kernel_size=[3, 3],
                                      strides=2, padding='same', activation=tf.nn.relu,
-                                     kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                     name=scope.name, reuse=scope.reuse)
+                                     kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv4:", conv4)
         with tf.variable_scope('conv4_2') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -183,8 +178,7 @@ class DAE_TFP_Model(object):
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             conv4_2 = tf.layers.conv2d(inputs=conv4, filters=256, kernel_size=[3, 3],
                                        strides=1, padding='same', activation=tf.nn.relu,
-                                       kernel_initializer=kernel_init, bias_initializer=bias_init,
-                                       name=scope.name, reuse=scope.reuse)
+                                       kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv4_2:", conv4_2)
         with tf.variable_scope('fully1') as scope:
             kernel_init = tf.truncated_normal_initializer(
@@ -196,10 +190,8 @@ class DAE_TFP_Model(object):
                                                        1024,
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
-                                                       biases_initializer=bias_init,
-                                                       scope=scope, reuse=scope.reuse)
+                                                       biases_initializer=bias_init, reuse=scope.reuse)
             print("fully1:", fully1)
-
         with tf.variable_scope('fully2') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
@@ -210,13 +202,12 @@ class DAE_TFP_Model(object):
                                                        self.__label_shape[2],
                                                        activation_fn=tf.nn.relu,
                                                        weights_initializer=kernel_init,
-                                                       biases_initializer=bias_init,
-                                                       scope=scope, reuse=scope.reuse)
+                                                       biases_initializer=bias_init, reuse=scope.reuse)
             print("fully2:", fully2)
 
         with tf.variable_scope('reshape') as scope:
             reshaped = tf.reshape(
-                fully2, [-1, 18, 4], name=scope.name)
+                fully2, [-1, 18, 4])
             print("reshape:", reshaped)
 
         return reshaped
@@ -300,33 +291,5 @@ class DAE_TFP_Model(object):
         return prediction
 
 
-class TestingConfig(object):
-    def __init__(self):
-        self.log_dir = "test_log_dir/"
-        self.batch_size = 512
-        self.total_epoches = 10
-        self.learning_rate = 0.001
-        self.label_shape = [30208, 18, 4]
-        self.restore_dae_path = ''
-
-
-def test():
-    with tf.Graph().as_default() as g:
-        config = TestingConfig()
-        model = DAE_TFP_Model(config, graph=g)
-        # train
-        X = np.zeros(shape=[512, 99, 12, 6])
-        Y = np.zeros(shape=[512, 18, 4])
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            for i in range(100):
-                _, loss, global_steps = model.step(
-                    sess, X, Y, if_train_all=True)
-                print('global_steps %d, loss %f' % (global_steps, loss))
-                _, loss, global_steps = model.step(
-                    sess, X, Y, if_train_all=False)
-                print('global_steps %d, loss %f' % (global_steps, loss))
-
-
 if __name__ == '__main__':
-    test()
+    pass

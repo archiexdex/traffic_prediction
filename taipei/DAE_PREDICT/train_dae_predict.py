@@ -12,13 +12,13 @@ import model_dae_predict
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
-tf.app.flags.DEFINE_string("train_data", "fix_train_data.npy",
+tf.app.flags.DEFINE_string("train_data", "train_data_bad_train_good_label.npy",
                            "training data name")
-tf.app.flags.DEFINE_string("test_data", "fix_test_data.npy",
+tf.app.flags.DEFINE_string("test_data", "test_data_bad_train_good_label.npy",
                            "testing data name")
-tf.app.flags.DEFINE_string("train_label", "train_label.npy",
+tf.app.flags.DEFINE_string("train_label", "train_label_bad_train_good_label.npy",
                            "training label data name")
-tf.app.flags.DEFINE_string("test_label", "test_label.npy",
+tf.app.flags.DEFINE_string("test_label", "test_label_bad_train_good_label.npy",
                            "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
@@ -29,7 +29,7 @@ tf.app.flags.DEFINE_string('log_dir', 'v3/log/',
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 500,
+tf.app.flags.DEFINE_integer('total_epoches', 1000,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
@@ -81,8 +81,8 @@ class ModelConfig(object):
 def main(_):
     with tf.get_default_graph().as_default() as graph:
         # load data
-        train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :]
-        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :]
+        train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :6]
+        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :6]
         train_label = np.load(FLAGS.data_dir + FLAGS.train_label)[:, :, :, 2]
         test_label = np.load(FLAGS.data_dir + FLAGS.test_label)[:, :, :, 2]
         # number of batches

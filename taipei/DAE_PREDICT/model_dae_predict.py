@@ -1,3 +1,7 @@
+
+#TODO input normalization or batch normalization
+#TODO add MAPE evaluate fn
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -35,7 +39,8 @@ class DAE_TFP_Model(object):
         tf.train.import_meta_graph(
             config.restore_dae_path + '.meta')
         # dae_output: A model's last tensor (recovered data) as the input of B model
-        dae_output = graph.get_tensor_by_name('DAE/deconv2/sub:0')
+        # dae_output = graph.get_tensor_by_name('DAE/deconv2/sub:0')
+        dae_output = graph.get_tensor_by_name('recover_logits_scale/add:0')
         self.__global_step = tf.train.get_or_create_global_step(graph=graph)
 
         with tf.variable_scope('PREDICT'):

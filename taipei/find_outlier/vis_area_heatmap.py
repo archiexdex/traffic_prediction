@@ -24,13 +24,17 @@ ACCESS_TOKEN = 'pk.eyJ1IjoiY2h5Y2hlbiIsImEiOiJjajZoaWo5aHYwNm44MnF0ZW56MTljaGp1I
 
 # FLAGS
 IS_DRAW_DISCRETE = False
+IS_NEW_DATA = True
 
 # PATH
-DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/'
-VD_GPS_FILE = os.path.join(DATA_PATH, 'VD_GPS.npy')
-MISSING_MASK_PATH = os.path.join(DATA_PATH, 'vd_base/5/mask_group/')
+if IS_NEW_DATA:
+    DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/'
+else:
+    DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/'
+VD_GPS_FILE = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/VD_GPS.npy'
+MISSING_MASK_PATH = os.path.join(DATA_PATH, 'mask_group')
 OUTLIER_MASK_PATH = os.path.join(
-    DATA_PATH, 'vd_base/5/mask_outlier/')
+    DATA_PATH, 'mask_outlier')
 
 
 def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
@@ -79,7 +83,8 @@ def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
 
     # prepare vis
     # color scale from blue to red
-    scl = [[0.0, "rgb(255, 0, 0)"], [0.6, "rgb(255, 0, 0)"], [0.7, "rgb(255, 255, 0)"], [0.8, "rgb(0, 255, 255)"], [1.0, "rgb(0, 0, 255)"], ]
+    scl = [[0.0, "rgb(255, 0, 0)"], [0.6, "rgb(255, 0, 0)"], [
+        0.7, "rgb(255, 255, 0)"], [0.8, "rgb(0, 255, 0)"], [0.9, "rgb(0, 255, 255)"], [1.0, "rgb(0, 0, 255)"], ]
     # traces
     description_list = []
     for vd_name_g, num_missing, num_outlier, num_both in zip(data_dict['vd_name'], data_dict['missing'], data_dict['outlier'], data_dict['both']):

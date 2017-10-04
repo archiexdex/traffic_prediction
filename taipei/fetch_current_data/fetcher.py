@@ -1,4 +1,5 @@
-#python2
+# python2
+# environment: synology
 import urllib
 import gzip
 import json

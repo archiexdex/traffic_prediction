@@ -42,7 +42,7 @@ class DCAEModel(object):
         self.input_shape = config.input_shape
         self.if_label_normed = config.if_label_normed
         self.if_mask_only = config.if_mask_only
-
+        
         # steps
         self.__global_step = tf.train.get_or_create_global_step(graph=graph)
         # data
@@ -79,8 +79,8 @@ class DCAEModel(object):
         tf.add_to_collection("train", self.__train_op)
         tf.add_to_collection("merged_op", self.__merged_op)
 
-        for i in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='DAE'):
-            print(i)
+        # for i in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='DAE'):
+        #     print(i)
 
     def __inference(self, corrupt_data, filter_numbers, filter_strides):
         """ construct the AutoEncoder model
@@ -199,7 +199,7 @@ class DCAEModel(object):
         print('sep_mean_loss:', sep_mean_loss)
 
         return l2_mean_loss, sep_mean_loss
-
+    
     def step(self, sess, inputs, labels):
         """ train one batch and update one time
         Params

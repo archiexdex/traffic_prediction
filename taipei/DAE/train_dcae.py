@@ -21,16 +21,16 @@ tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detectio
                            "data directory")
 # tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/',
 #                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v0/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', 'v1/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v0/log/',
+tf.app.flags.DEFINE_string('log_dir', 'v1/log/',
                            "summary directory")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saving model eg: checkpoints/model.ckpt-5")
 # data augmentation and corruption
 tf.app.flags.DEFINE_integer('aug_ratio', 4,
                             "the ratio of data augmentation")
-tf.app.flags.DEFINE_integer('corrupt_amount', 60,
+tf.app.flags.DEFINE_integer('corrupt_ratio', 0.10,
                             "the amount of corrupted data")
 # training parameters
 FILTER_NUMBERS = [32, 64, 128]
@@ -66,7 +66,7 @@ class TrainingConfig(object):
         self.log_dir = FLAGS.log_dir
         self.restore_path = FLAGS.restore_path
         self.aug_ratio = FLAGS.aug_ratio
-        self.corrupt_amount = FLAGS.corrupt_amount
+        self.corrupt_ratio = FLAGS.corrupt_ratio
         self.batch_size = FLAGS.batch_size
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
@@ -83,7 +83,7 @@ class TrainingConfig(object):
         print("log_dir:", self.log_dir)
         print("restore_path:", self.restore_path)
         print("aug_ratio:", self.aug_ratio)
-        print("corrupt_amount:", self.corrupt_amount)
+        print("corrupt_ratio:", self.corrupt_ratio)
         print("batch_size:", self.batch_size)
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
@@ -99,9 +99,9 @@ def main(_):
         valid_data = np.load(FLAGS.data_dir + FLAGS.valid_data)
         # generate raw_data and corrupt_data
         input_train, label_train, _ = utils.generate_input_and_label(
-            train_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
+            train_data, FLAGS.aug_ratio, FLAGS.corrupt_ratio, policy='random_data')
         input_valid, label_valid, _ = utils.generate_input_and_label(
-            valid_data, FLAGS.aug_ratio, FLAGS.corrupt_amount, policy='random_vd')
+            valid_data, FLAGS.aug_ratio, FLAGS.corrupt_ratio, policy='random_data')
         # data normalization
         Norm_er = utils.Norm()
         input_train = Norm_er.data_normalization(input_train)[:, :, :, :6]
@@ -162,6 +162,7 @@ def main(_):
 
                 # validation
                 valid_loss_sum = 0.0
+                valid_sep_loss_sum = np.zeros(shape=[3], dtype=np.float)
                 for valid_b in range(valid_num_batch):
                     batch_idx = valid_b * FLAGS.batch_size
                     # input, label
@@ -169,9 +170,10 @@ def main(_):
                                                     FLAGS.batch_size]
                     label_valid_batch = label_valid[batch_idx:batch_idx +
                                                     FLAGS.batch_size]
-                    valid_losses, _ = model.compute_loss(
+                    valid_losses, sep_loss = model.compute_loss(
                         sess, input_valid_batch, label_valid_batch)
                     valid_loss_sum += valid_losses
+                    valid_sep_loss_sum += sep_loss
                 end_time = time.time()
 
                 # logging per ephoch
@@ -181,10 +183,15 @@ def main(_):
                        train_loss_sum / train_num_batch,
                        valid_loss_sum / valid_num_batch,
                        (end_time - start_time)))
-                print("%f density_loss, %f flow_loss, %f speed_loss" %
+                print("train, %f density_loss, %f flow_loss, %f speed_loss" %
                       (train_sep_loss_sum[0] / train_num_batch,
                        train_sep_loss_sum[1] / train_num_batch,
                        train_sep_loss_sum[2] / train_num_batch))
+                
+                print("valid, %f density_loss, %f flow_loss, %f speed_loss\n" %
+                      (valid_sep_loss_sum[0] / valid_num_batch,
+                       valid_sep_loss_sum[1] / valid_num_batch,
+                       valid_sep_loss_sum[2] / valid_num_batch))
 
                 # train mean ephoch loss
                 train_scalar_summary = tf.Summary()

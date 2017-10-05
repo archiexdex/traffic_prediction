@@ -8,6 +8,13 @@ import shutil
 import numpy as np
 import tensorflow as tf
 import model_dae_predict
+import datetime
+import plotly
+plotly.__version__
+plotly.tools.set_credentials_file(
+    username='ChenChiehYu', api_key='xh9rsxFXY6DNF1qAfUyQ')
+import plotly.plotly as py
+import plotly.graph_objs as go
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -30,22 +37,67 @@ tf.app.flags.DEFINE_string('restore_path', None,
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
 
+
 def vis_result(labels, predictions):
-    """ vis TODO
+    """ visaulization 
     params
     ------
-        labels : float, shape=(#, vds=18, intervals=4)
+        labels : float, shape=(#, vds=18, intervals=4, features=7)
         predictions : float, shape=(#, vds=18, intervals=4)
+    note
+    ----
+        features : [time, density, flow, speed, weekday, mask, timestamps]
     """
-    pass
+    # alignment
+    labels = labels[:predictions.shape[0], :, :, :]
+    # make up missing data with 0
+    missing_ts = []
+    first_timestamp = labels[0, 0, 0, -1]
+    for i, ts in enumerate(labels[:, 0, 0, -1]):
+        while ts != first_timestamp:
+            missing_ts.append(first_timestamp)
+            first_timestamp += 300
+
+    time_list = []
+    for _, v in enumerate(labels[:, 0, 0, -1]):
+        time_list.append(datetime.datetime.fromtimestamp(
+            v).strftime("%Y-%m-%d %H:%M:%S"))
+            
+    data = []
+    for i in range(4):
+        trace_flow = go.Scatter(
+            x=time_list,
+            y=labels[:, 0, i, 2],
+            name='Flow' + str(i),
+            line=dict(
+                width=3)
+        )
+        trace_flow_predict = go.Scatter(
+            x=time_list,
+            y=predictions[:, 0, i],
+            name='Flow_Predict' + str(i),
+            line=dict(
+                width=3)
+        )
+        data.append(trace_flow)
+        data.append(trace_flow_predict)
+    
+    layout = dict(title="Vtest",
+                  xaxis=dict(title='Time'),
+                  yaxis=dict(title='Value'),
+                  )
+
+    fig = dict(data=data, layout=layout)
+    plotly.offline.plot(fig, filename=FLAGS.vis_dir + "Vtest.html")
+
 
 def main(_):
     with tf.get_default_graph().as_default() as graph:
         # load data
-        # train_data = np.load(FLAGS.data_dir + FLAGS.train_data)[:, :, :, :6]
-        # train_label = np.load(FLAGS.data_dir + FLAGS.train_label)[:, :, :, 2]
-        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :6]
-        test_label = np.load(FLAGS.data_dir + FLAGS.test_label)[:, :, :, 2]
+        # train_data = np.load(FLAGS.data_dir + FLAGS.train_data)
+        # train_label = np.load(FLAGS.data_dir + FLAGS.train_label)
+        test_data = np.load(FLAGS.data_dir + FLAGS.test_data)
+        test_label = np.load(FLAGS.data_dir + FLAGS.test_label)
         # number of batches
         # train_num_batch = train_data.shape[0] // FLAGS.batch_size
         # print(train_num_batch)
@@ -81,9 +133,9 @@ def main(_):
                 batch_idx = test_b * FLAGS.batch_size
                 # input, label
                 test_data_batch = test_data[batch_idx:batch_idx +
-                                            FLAGS.batch_size]
+                                            FLAGS.batch_size][:, :, :, :6]
                 test_label_batch = test_label[batch_idx:batch_idx +
-                                              FLAGS.batch_size]
+                                              FLAGS.batch_size][:, :, :, 2]
                 feed_dict = {
                     X_ph: test_data_batch,
                     Y_ph: test_label_batch
@@ -115,7 +167,6 @@ def main(_):
 if __name__ == "__main__":
     if FLAGS.restore_path is None:
         raise AssertionError("FLAGS.restore_path should not be None!!!")
-    if os.path.exists(FLAGS.vis_dir):
-        shutil.rmtree(FLAGS.vis_dir)
-        print('rm -rf "%s" complete!' % FLAGS.vis_dir)
+    if not os.path.exists(FLAGS.vis_dir):
+        os.mkdir(FLAGS.vis_dir)
     tf.app.run()

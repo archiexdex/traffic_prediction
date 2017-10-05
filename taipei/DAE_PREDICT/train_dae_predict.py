@@ -1,3 +1,8 @@
+"""
+A : DAE = denoising autoencoder
+B : TFP = traffic flow prediction
+"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -8,6 +13,14 @@ import shutil
 import numpy as np
 import tensorflow as tf
 import model_dae_predict
+
+############################
+# see model_dae_predict.py for more infos
+# 'trainA_trainB'
+# 'fixA_trainB'
+# 'noA_trainB'
+train_mode = 'trainA_trainB'
+############################
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -22,9 +35,9 @@ tf.app.flags.DEFINE_string("test_label", "test_label_train_0_label_100.npy",
                            "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', 'v4/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', train_mode + '/v4/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', 'v4/log/',
+tf.app.flags.DEFINE_string('log_dir', train_mode + '/v4/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
@@ -40,16 +53,16 @@ tf.app.flags.DEFINE_float('learning_rate', 1e-4,
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saved model (DAE+PREDICT) eg: DAE_PREDICT/checkpoints/model.ckpt-5")
 tf.app.flags.DEFINE_string('restore_dae_path', None,
-                           "path of pretrained DAE model eg: DAE/checkpoints/model.ckpt-5")
+                           "path of pretrained DAE model eg: ../DAE/v0/checkpoints/model.ckpt-5")
 # training flags
-tf.app.flags.DEFINE_bool('if_train_all', False,
-                         "True, update A+B. Fasle, update B fix A")
+tf.app.flags.DEFINE_string('train_mode', train_mode,
+                           "training mode")
 tf.app.flags.DEFINE_bool('if_dae_recover_all', False,
                          "True, dae output as predict input. False, dae output on mask position + original data.")
 
 
 class ModelConfig(object):
-    def __init__(self, label_shape):
+    def __init__(self, input_shape, label_shape):
         self.data_dir = FLAGS.data_dir
         self.checkpoints_dir = FLAGS.checkpoints_dir
         self.log_dir = FLAGS.log_dir
@@ -58,8 +71,9 @@ class ModelConfig(object):
         self.save_freq = FLAGS.save_freq
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
+        self.input_shape = input_shape
         self.label_shape = label_shape
-        self.if_train_all = FLAGS.if_train_all
+        self.train_mode = FLAGS.train_mode
         self.restore_dae_path = FLAGS.restore_dae_path
         self.if_dae_recover_all = FLAGS.if_dae_recover_all
 
@@ -72,8 +86,9 @@ class ModelConfig(object):
         print("save_freq:", self.save_freq)
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
+        print("input_shape:", self.input_shape)
         print("label_shape:", self.label_shape)
-        print("if_train_all:", self.if_train_all)
+        print("train_mode:", self.train_mode)
         print("restore_dae_path:", self.restore_dae_path)
         print("if_dae_recover_all:", self.if_dae_recover_all)
 
@@ -91,7 +106,7 @@ def main(_):
         print(train_num_batch)
         print(test_num_batch)
         # config setting
-        config = ModelConfig(train_label.shape)
+        config = ModelConfig(train_data.shape, train_label.shape)
         config.show()
         # model
         model = model_dae_predict.DAE_TFP_Model(config, graph=graph)
@@ -111,8 +126,9 @@ def main(_):
 
         # Add ops to save and restore all the variables.
         saver = tf.train.Saver()
-        DAE_saver = tf.train.Saver(var_list=tf.get_collection(
-            tf.GraphKeys.GLOBAL_VARIABLES, scope='DAE'))
+        if train_mode != 'noA_trainB':
+            DAE_saver = tf.train.Saver(var_list=tf.get_collection(
+                tf.GraphKeys.GLOBAL_VARIABLES, scope='DAE'))
         # summary writter
         train_summary_writer = tf.summary.FileWriter(
             FLAGS.log_dir + 'ephoch_train', graph=graph)
@@ -149,7 +165,7 @@ def main(_):
                                                     FLAGS.batch_size]
                     # train
                     each_vd_losses, losses, global_step = model.step(
-                        sess, train_data_batch, train_label_batch, if_train_all=FLAGS.if_train_all)
+                        sess, train_data_batch, train_label_batch, train_mode=FLAGS.train_mode)
                     each_vd_losses_sum.append(each_vd_losses)
                     train_loss_sum += losses
                 each_vd_losses_sum = np.array(each_vd_losses_sum)
@@ -210,7 +226,7 @@ def main(_):
 
 
 if __name__ == "__main__":
-    if FLAGS.restore_dae_path is None:
+    if FLAGS.restore_dae_path is None and train_mode != 'noA_trainB':
         raise AssertionError("FLAGS.restore_dae_path should not be None!!!")
     if not os.path.exists(FLAGS.checkpoints_dir):
         os.makedirs(FLAGS.checkpoints_dir)

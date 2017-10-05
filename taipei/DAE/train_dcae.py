@@ -13,9 +13,9 @@ import utils
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
-tf.app.flags.DEFINE_string("train_data", "train_data.npy",
+tf.app.flags.DEFINE_string("train_data", "train_data_train_100_label_100.npy",
                            "training data name")
-tf.app.flags.DEFINE_string("valid_data", "test_data.npy",
+tf.app.flags.DEFINE_string("valid_data", "test_data_train_100_label_100.npy",
                            "validation data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
@@ -33,18 +33,16 @@ tf.app.flags.DEFINE_integer('aug_ratio', 4,
 tf.app.flags.DEFINE_integer('corrupt_ratio', 0.10,
                             "the amount of corrupted data")
 # training parameters
-FILTER_NUMBERS = [ 32, 64, 128]
+FILTER_NUMBERS = [32, 64, 128]
 FILTER_STRIDES = [1,  2,   2]
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 150,
+tf.app.flags.DEFINE_integer('total_epoches', 500,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
-tf.app.flags.DEFINE_float('learning_rate', 0.001,
+tf.app.flags.DEFINE_float('learning_rate', 1e-4,
                           "learning rate of AdamOptimizer")
-tf.app.flags.DEFINE_bool('if_norm_label', False,
-                          "if normalize label data")
 # tf.app.flags.DEFINE_integer('num_gpus', 2,
 #                             "multi gpu")
 # flags
@@ -73,7 +71,6 @@ class TrainingConfig(object):
         self.total_epoches = FLAGS.total_epoches
         self.save_freq = FLAGS.save_freq
         self.learning_rate = FLAGS.learning_rate
-        self.if_norm_label = FLAGS.if_norm_label
         self.if_label_normed = FLAGS.if_label_normed
         self.if_mask_only = FLAGS.if_mask_only
 
@@ -91,7 +88,6 @@ class TrainingConfig(object):
         print("total_epoches:", self.total_epoches)
         print("save_freq:", self.save_freq)
         print("learning_rate:", self.learning_rate)
-        print("if_norm_label:", self.if_norm_label)
         print("if_label_normed:", self.if_label_normed)
         print("if_mask_only:", self.if_mask_only)
 
@@ -110,12 +106,8 @@ def main(_):
         Norm_er = utils.Norm()
         input_train = Norm_er.data_normalization(input_train)[:, :, :, :6]
         input_valid = Norm_er.data_normalization(input_valid)[:, :, :, :6]
-        if FLAGS.if_norm_label:
-            label_train = Norm_er.data_normalization(label_train)[:, :, :, 1:4]
-            label_valid = Norm_er.data_normalization(label_valid)[:, :, :, 1:4]
-        else:
-            label_train = label_train[:, :, :, 1:4]
-            label_valid = label_valid[:, :, :, 1:4]
+        label_train = label_train[:, :, :, 1:4]
+        label_valid = label_valid[:, :, :, 1:4]
 
         # number of batches
         train_num_batch = input_train.shape[0] // FLAGS.batch_size

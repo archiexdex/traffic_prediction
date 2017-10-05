@@ -153,7 +153,7 @@ class DCAEModel(object):
                     stide = filter_strides[layer_id]
                     output = lrelu(
                         tf.add(tf.nn.conv2d_transpose(
-                            value=current_input, filter=W, output_shape=tf.stack([layer_shape[0], layer_shape[1], layer_shape[2], out_filter_amount]), strides=[1, stide, stide, 1], padding='SAME'), b))
+                            value=current_input, filter=W, output_shape=[layer_shape[0], layer_shape[1], layer_shape[2], out_filter_amount], strides=[1, stide, stide, 1], padding='SAME'), b))
                     current_input = output
                     print(scope.name, output)
 

@@ -1,7 +1,6 @@
 
 # TODO input normalization or batch normalization
 # TODO add MAPE evaluate fn
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -12,9 +11,13 @@ import tensorflow as tf
 
 class DAE_TFP_Model(object):
     """
-    Denoising AutoEncoder + Traffic Flow Prediction
-    A model -> DAE : data imputation on missing value
-    B model -> TFP : traffic flow prediction
+    A : DAE = denoising autoencoder
+    B : TFP = traffic flow prediction
+    The model is use to predict traffic flow of the future.
+    we could experiment different combinations of follows
+        'trainA_trainB' : fine tune A and B together
+        'fixA_trainB' : fix A to train B only
+        'noA_trainB' : no A model train/predict B model only
     """
 
     def __init__(self, config, graph=None):
@@ -30,17 +33,21 @@ class DAE_TFP_Model(object):
                 * save_freq : number of epoches to saving model
                 * total_interval : total steps of time
                 * learning_rate : learning rate of AdamOptimizer
+                * input_shape : input data shape
                 * label_shape : label data shape
-                * if_train_all : True, update A+B. Fasle, update B fix A
+                * train_mode : training mode
                 * if_dae_recover_all : True, dae output as predict input. False, dae output on mask position + original data.
             graph : default graph
         """
-        # build up the DAE graph
-        tf.train.import_meta_graph(
-            config.restore_dae_path + '.meta')
-        # dae_output: A model's last tensor (recovered data) as the input of B model
-        # dae_output = graph.get_tensor_by_name('DAE/deconv2/sub:0')
-        dae_output = graph.get_tensor_by_name('recover_logits_scale/add:0')
+        if config.train_mode != 'noA_trainB':
+            # trainA_trainB or fixA_trainB
+            # build up the DAE graph
+            tf.train.import_meta_graph(
+                config.restore_dae_path + '.meta')
+            # dae_output: A model's last tensor (recovered data) as the input of B model
+            # dae_output = graph.get_tensor_by_name('DAE/deconv2/sub:0')
+            dae_output = graph.get_tensor_by_name('recover_logits_scale/add:0')
+
         self.__global_step = tf.train.get_or_create_global_step(graph=graph)
 
         with tf.variable_scope('PREDICT'):
@@ -49,25 +56,31 @@ class DAE_TFP_Model(object):
             self.__learning_rate = config.learning_rate
             self.__label_shape = config.label_shape
             # model IO : self.__X_ph -> A model -> B model -> self.__Y_ph
-            self.__X_ph = graph.get_tensor_by_name('corrupt_data:0')
+            if config.train_mode != 'noA_trainB':
+                # trainA_trainB or fixA_trainB
+                self.__X_ph = graph.get_tensor_by_name('corrupt_data:0')
+                if not config.if_dae_recover_all:
+                    dae_output = self.dae_recover_mask_only(
+                        dae_output, self.__X_ph)
+                else:
+                    dae_output = tf.concat(
+                        [self.__X_ph[:, :, :, 0:1], dae_output, self.__X_ph[:, :, :, 4:6]], axis=-1)
+                tfp_input = dae_output
+            else:
+                self.__X_ph = tf.placeholder(dtype=tf.float32, shape=[
+                    None, config.input_shape[1], config.input_shape[2], config.input_shape[3]], name='raw_data')
+                tfp_input = self.__X_ph
             self.__Y_ph = tf.placeholder(dtype=tf.float32, shape=[
                 None, config.label_shape[1], config.label_shape[2]], name='label_data')
-            if not config.if_dae_recover_all:
-                dae_output = self.dae_recover_mask_only(
-                    dae_output, self.__X_ph)
-            else:
-                dae_output = tf.concat(
-                    [self.__X_ph[:, :, :, 0:1], dae_output, self.__X_ph[:, :, :, 4:6]], axis=-1)
-
             optimizer = tf.train.AdamOptimizer(
                 learning_rate=self.__learning_rate)
 
-            self.__logits = self.__inference(dae_output)
+            self.__logits = self.__inference(tfp_input)
             self.__each_vd_losses, self.__losses = self.__loss_function(
                 self.__logits, self.__Y_ph)
             self.__train_loss_summary = tf.summary.scalar(
                 'loss', self.__losses)
-            # train B only
+            # fix A train B only
             self.__train_op = optimizer.minimize(
                 self.__losses, var_list=self.__get_var_list(), global_step=self.__global_step)
             # train A+B
@@ -233,7 +246,7 @@ class DAE_TFP_Model(object):
         print(l2_mean_loss)
         return vd_mean_losses, l2_mean_loss
 
-    def step(self, sess, inputs, labels, if_train_all):
+    def step(self, sess, inputs, labels, train_mode):
         """
         Params
         ------
@@ -242,8 +255,8 @@ class DAE_TFP_Model(object):
                 input of DAE, raw data, corrupted data (contain missing value)
             labels : float, shape=[None, target_vds, intevals]
                 label data
-            if_train_all : bool
-                True -> update A+B. False -> update B only.
+            train_mode : bool
+                'trainA_trainB' -> update A+B. 'fixA_trainB' -> update B only. 'noA_trainB' -> update B. (no A)
         Return
         ------
             each_vd_losses: float, shape=[num_vds]
@@ -255,10 +268,11 @@ class DAE_TFP_Model(object):
         """
         feed_dict = {self.__X_ph: inputs,
                      self.__Y_ph: labels}
-        if if_train_all:
-            train_op = self.__train_all_op
-        else:
+        if train_mode == 'fixA_trainB':
             train_op = self.__train_op
+        else:
+            # train_mode : 'trainA_trainB' or 'noA_trainB'
+            train_op = self.__train_all_op
         summary, each_vd_losses, losses, global_steps, _ = sess.run(
             [self.__train_loss_summary, self.__each_vd_losses, self.__losses, self.__global_step, train_op], feed_dict=feed_dict)
         self.__summary_writer.add_summary(

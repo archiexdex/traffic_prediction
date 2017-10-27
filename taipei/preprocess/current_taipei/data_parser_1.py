@@ -2,7 +2,7 @@ import numpy as np
 import xml.etree.ElementTree as ET
 import datetime
 import time
-import urllib.request
+from urllib import request
 import os
 import sys
 
@@ -28,13 +28,15 @@ def main():
     # enumerate time from start_time to end_time
     while now != END_TIME:
         count += 5
-        for noice in range(-1,2):
+        FIX_TIMESTAMP = get_next_time(count)
+        for noice in range(-2,3):
             now = get_next_time(count+noice)
             file_path = os.path.join( ROOT_PATH , (now.strftime("%Y%m%d_%H%M") + ".xml") )        
             # try to get data from server
             # if find the file successfully, break to do next thing
             try:
-                xml_data = urllib.request.urlopen(file_path)
+                # xml_data = urllib.request.urlopen(file_path)
+                xml_data = request.urlopen(file_path)
                 break
             except: 
                 pass
@@ -81,16 +83,18 @@ def main():
 
             if elem.tag == "AvgOccupancy":
                 DENSITY = float(elem.text)
-                data[VD_ID][LANEID].append( [TIMESTAMP, DENSITY, FLOW, SPEED, WEEK] )
+                data[VD_ID][LANEID].append( [FIX_TIMESTAMP, DENSITY, FLOW, SPEED, WEEK] )
                 pass
     
     # save data by each vd
     for vd in data:
         for lane in data[vd]:
-            path = os.path.join(SAVE_PATH, vd+"_"+str(lane) )
+            path = os.path.join(SAVE_PATH, vd + "_" + str(lane) )
             np.save(path, data[vd][lane])
     pass
 
 
 if __name__ == "__main__":
+    if not os.path.exists(SAVE_PATH):
+        os.mkdir(SAVE_PATH)
     main()

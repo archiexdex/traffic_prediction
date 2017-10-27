@@ -13,36 +13,37 @@ import shutil
 import numpy as np
 import tensorflow as tf
 import model_dae_predict
+import utils
 
 ############################
 # see model_dae_predict.py for more infos
 # 'trainA_trainB'
 # 'fixA_trainB'
 # 'noA_trainB'
-train_mode = 'trainA_trainB'
+train_mode = 'noA_trainB'
 ############################
 
 FLAGS = tf.app.flags.FLAGS
 
 # path parameters
-tf.app.flags.DEFINE_string("train_data", "train_data_train_0_label_100.npy",
+tf.app.flags.DEFINE_string("train_data", "train_data_train_0_train_100.npy",
                            "training data name")
-tf.app.flags.DEFINE_string("test_data", "test_data_train_0_label_100.npy",
+tf.app.flags.DEFINE_string("test_data", "test_data_train_0_train_100.npy",
                            "testing data name")
-tf.app.flags.DEFINE_string("train_label", "train_label_train_0_label_100.npy",
+tf.app.flags.DEFINE_string("train_label", "train_label_train_0_train_100.npy",
                            "training label data name")
-tf.app.flags.DEFINE_string("test_label", "test_label_train_0_label_100.npy",
+tf.app.flags.DEFINE_string("test_label", "test_label_train_0_train_100.npy",
                            "testing label data name")
 tf.app.flags.DEFINE_string('data_dir', '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/',
                            "data directory")
-tf.app.flags.DEFINE_string('checkpoints_dir', train_mode + '/v4/checkpoints/',
+tf.app.flags.DEFINE_string('checkpoints_dir', train_mode + '/test_v3/checkpoints/',
                            "training checkpoints directory")
-tf.app.flags.DEFINE_string('log_dir', train_mode + '/v4/log/',
+tf.app.flags.DEFINE_string('log_dir', train_mode + '/test_v3/log/',
                            "summary directory")
 # training parameters
 tf.app.flags.DEFINE_integer('batch_size', 512,
                             "mini-batch size")
-tf.app.flags.DEFINE_integer('total_epoches', 1000,
+tf.app.flags.DEFINE_integer('total_epoches', 10000,
                             "total training epoches")
 tf.app.flags.DEFINE_integer('save_freq', 25,
                             "number of epoches to saving model")
@@ -50,14 +51,17 @@ tf.app.flags.DEFINE_integer('total_interval', 12,
                             "total steps of time")
 tf.app.flags.DEFINE_float('learning_rate', 1e-4,
                           "learning rate of AdamOptimizer")
+tf.app.flags.DEFINE_float('dropout', 0.5,
+                          "drop out rate")
 tf.app.flags.DEFINE_string('restore_path', None,
                            "path of saved model (DAE+PREDICT) eg: DAE_PREDICT/checkpoints/model.ckpt-5")
+# tf.app.flags.DEFINE_string('restore_dae_path', "../DAE/reducevd_v1/checkpoints/model.ckpt-33652",
 tf.app.flags.DEFINE_string('restore_dae_path', None,
                            "path of pretrained DAE model eg: ../DAE/v0/checkpoints/model.ckpt-5")
 # training flags
 tf.app.flags.DEFINE_string('train_mode', train_mode,
                            "training mode")
-tf.app.flags.DEFINE_bool('if_dae_recover_all', False,
+tf.app.flags.DEFINE_bool('if_dae_recover_all', True,
                          "True, dae output as predict input. False, dae output on mask position + original data.")
 
 
@@ -71,6 +75,7 @@ class ModelConfig(object):
         self.save_freq = FLAGS.save_freq
         self.total_interval = FLAGS.total_interval
         self.learning_rate = FLAGS.learning_rate
+        self.dropout = FLAGS.dropout
         self.input_shape = input_shape
         self.label_shape = label_shape
         self.train_mode = FLAGS.train_mode
@@ -86,6 +91,7 @@ class ModelConfig(object):
         print("save_freq:", self.save_freq)
         print("total_interval:", self.total_interval)
         print("learning_rate:", self.learning_rate)
+        print("dropout:", self.dropout)
         print("input_shape:", self.input_shape)
         print("label_shape:", self.label_shape)
         print("train_mode:", self.train_mode)
@@ -100,6 +106,8 @@ def main(_):
         test_data = np.load(FLAGS.data_dir + FLAGS.test_data)[:, :, :, :6]
         train_label = np.load(FLAGS.data_dir + FLAGS.train_label)[:, :, :, 2]
         test_label = np.load(FLAGS.data_dir + FLAGS.test_label)[:, :, :, 2]
+        # train_data, _, _ = utils.generate_input_and_label(train_data, aug_ratio=1, corrupt_ratio=0.1, policy='random_vd')
+        # test_data, _, _ = utils.generate_input_and_label(test_data, aug_ratio=1, corrupt_ratio=0.1, policy='random_vd')
         # number of batches
         train_num_batch = train_data.shape[0] // FLAGS.batch_size
         test_num_batch = test_data.shape[0] // FLAGS.batch_size
@@ -134,6 +142,11 @@ def main(_):
             FLAGS.log_dir + 'ephoch_train', graph=graph)
         valid_summary_writer = tf.summary.FileWriter(
             FLAGS.log_dir + 'ephoch_valid', graph=graph)
+
+        best_train_loss = {"epoch": 0, "step":0, "train":{}, "valid":{}}
+        best_train_loss["train"]["mean_loss"] = 1234567890
+        best_valid_loss = {"epoch": 0, "step":0, "train":{}, "valid":{}}
+        best_valid_loss["valid"]["mean_loss"] = 1234567890
 
         # Session
         with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
@@ -201,6 +214,34 @@ def main(_):
                 print(each_vd_losses_mean)
                 print("each test vd's mean loss:")
                 print(test_each_vd_losses_mean)
+
+                if train_loss_sum / train_num_batch < best_train_loss["train"]["mean_loss"]:
+                    best_train_loss["epoch"]     = global_ephoch
+                    best_train_loss["step"]      = global_step
+                    best_train_loss["train"]["mean_loss"] = train_loss_sum / train_num_batch
+                    best_train_loss["train"]["each_vd"]   = each_vd_losses_mean
+                    best_train_loss["valid"]["mean_loss"] = test_loss_sum / test_num_batch
+                    best_train_loss["valid"]["each_vd"]   = test_each_vd_losses_mean
+                
+                if test_loss_sum / test_num_batch < best_valid_loss["valid"]["mean_loss"]:
+                    best_valid_loss["epoch"]     = global_ephoch
+                    best_valid_loss["step"]      = global_step
+                    best_valid_loss["train"]["mean_loss"] = train_loss_sum / train_num_batch
+                    best_valid_loss["train"]["each_vd"]   = each_vd_losses_mean
+                    best_valid_loss["valid"]["mean_loss"] = test_loss_sum / test_num_batch
+                    best_valid_loss["valid"]["each_vd"]   = test_each_vd_losses_mean
+                
+                print("best train epoch %d step %d\
+                       \ntrain loss %f\
+                       \nvalid loss %f"
+                      % (best_train_loss["epoch"], best_train_loss["step"],
+                         best_train_loss["train"]["mean_loss"], best_train_loss["valid"]["mean_loss"]))
+
+                print("best valid epoch %d step %d\
+                       \ntrain loss %f\
+                       \nvalid loss %f"
+                      % (best_valid_loss["epoch"], best_valid_loss["step"],
+                         best_valid_loss["train"]["mean_loss"], best_valid_loss["valid"]["mean_loss"]))
 
                 # train mean ephoch loss
                 train_scalar_summary = tf.Summary()

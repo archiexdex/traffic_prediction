@@ -74,18 +74,22 @@ class DAE_TFP_Model(object):
                 None, config.label_shape[1], config.label_shape[2]], name='label_data')
             optimizer = tf.train.AdamOptimizer(
                 learning_rate=self.__learning_rate)
-
-            self.__logits = self.__inference(tfp_input)
-            self.__each_vd_losses, self.__losses = self.__loss_function(
-                self.__logits, self.__Y_ph)
+            with tf.variable_scope('is_training'):
+                self.__logits_train = self.__inference(tfp_input, config.dropout, is_training=True)
+                tf.get_variable_scope().reuse_variables()
+                self.__logits_test  = self.__inference(tfp_input, config.dropout, is_training=False)
+            self.__each_vd_losses_train, self.__losses_train = self.__loss_function(
+                self.__logits_train, self.__Y_ph)
+            self.__each_vd_losses_test, self.__losses_test = self.__loss_function(
+                self.__logits_test, self.__Y_ph)
             self.__train_loss_summary = tf.summary.scalar(
-                'loss', self.__losses)
+                'loss', self.__losses_train)
             # fix A train B only
             self.__train_op = optimizer.minimize(
-                self.__losses, var_list=self.__get_var_list(), global_step=self.__global_step)
+                self.__losses_train, var_list=self.__get_var_list(), global_step=self.__global_step)
             # train A+B
             self.__train_all_op = optimizer.minimize(
-                self.__losses, global_step=self.__global_step)
+                self.__losses_train, global_step=self.__global_step)
 
             # summary writer
             self.__summary_writer = tf.summary.FileWriter(
@@ -124,7 +128,15 @@ class DAE_TFP_Model(object):
                 theta_PREDICT.append(v)
         return theta_PREDICT
 
-    def __inference(self, inputs):
+    def __leakyrelu(self, features, alpha=0.2):
+        """
+        """
+        return tf.maximum(features, features * alpha)
+    
+    def __swish(self, features):
+        return tf.nn.sigmoid(features) * features
+
+    def __inference(self, inputs, dropout, is_training):
         """
         Params
         ------
@@ -145,66 +157,71 @@ class DAE_TFP_Model(object):
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             conv1 = tf.layers.conv2d(inputs=inputs, filters=64, kernel_size=[3, 3],
-                                     strides=1, padding='same', activation=tf.nn.relu,
+                                     strides=1, padding='same', activation=self.__leakyrelu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv1:", conv1)
-        with tf.variable_scope('conv1_2') as scope:
-            kernel_init = tf.truncated_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            bias_init = tf.random_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv1_2 = tf.layers.conv2d(inputs=conv1, filters=64, kernel_size=[3, 3],
-                                       strides=1, padding='same', activation=tf.nn.relu,
-                                       kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
-            print("conv1_2:", conv1_2)
+        # with tf.variable_scope('conv1_2') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv1_2 = tf.layers.conv2d(inputs=conv1, filters=64, kernel_size=[3, 3],
+        #                                strides=1, padding='same', activation=self.__leakyrelu,
+        #                                kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
+        #     print("conv1_2:", conv1_2)
         with tf.variable_scope('conv2') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv2 = tf.layers.conv2d(inputs=conv1_2, filters=128, kernel_size=[3, 3],
-                                     strides=2, padding='same', activation=tf.nn.relu,
+            conv2 = tf.layers.conv2d(inputs=conv1, filters=128, kernel_size=[3, 3],
+                                     strides=2, padding='same', activation=self.__leakyrelu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv2:", conv2)
+        # with tf.variable_scope('conv3') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3, 3],
+        #                              strides=1, padding='same', activation=self.__leakyrelu,
+        #                              kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
+        #     print("conv3:", conv3)
         with tf.variable_scope('conv3') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3, 3],
-                                     strides=1, padding='same', activation=tf.nn.relu,
+            conv3 = tf.layers.conv2d(inputs=conv2, filters=256, kernel_size=[3, 3],
+                                     strides=2, padding='same', activation=self.__leakyrelu,
                                      kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
             print("conv3:", conv3)
-        with tf.variable_scope('conv4') as scope:
-            kernel_init = tf.truncated_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            bias_init = tf.random_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv4 = tf.layers.conv2d(inputs=conv3, filters=256, kernel_size=[3, 3],
-                                     strides=2, padding='same', activation=tf.nn.relu,
-                                     kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
-            print("conv4:", conv4)
-        with tf.variable_scope('conv4_2') as scope:
-            kernel_init = tf.truncated_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            bias_init = tf.random_normal_initializer(
-                mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            conv4_2 = tf.layers.conv2d(inputs=conv4, filters=256, kernel_size=[3, 3],
-                                       strides=1, padding='same', activation=tf.nn.relu,
-                                       kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
-            print("conv4_2:", conv4_2)
+        # with tf.variable_scope('conv4_2') as scope:
+        #     kernel_init = tf.truncated_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     bias_init = tf.random_normal_initializer(
+        #         mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
+        #     conv4_2 = tf.layers.conv2d(inputs=conv4, filters=256, kernel_size=[3, 3],
+        #                                strides=1, padding='same', activation=self.__leakyrelu,
+        #                                kernel_initializer=kernel_init, bias_initializer=bias_init, reuse=scope.reuse)
+        #     print("conv4_2:", conv4_2)
         with tf.variable_scope('fully1') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
             bias_init = tf.random_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
-            flat = tf.contrib.layers.flatten(inputs=conv4_2)
+            flat = tf.contrib.layers.flatten(inputs=conv3)
             fully1 = tf.contrib.layers.fully_connected(flat,
                                                        1024,
-                                                       activation_fn=tf.nn.relu,
+                                                       activation_fn=self.__leakyrelu,
                                                        weights_initializer=kernel_init,
-                                                       biases_initializer=bias_init, reuse=scope.reuse)
+                                                       biases_initializer=bias_init, reuse=scope.reuse,scope=scope)
             print("fully1:", fully1)
+        
+        with tf.variable_scope('dropout') as scope:
+            fully1 = tf.layers.dropout(fully1, rate=dropout, training=is_training)
+            print("fully1_drop:", fully1)
+        
         with tf.variable_scope('fully2') as scope:
             kernel_init = tf.truncated_normal_initializer(
                 mean=0.0, stddev=0.01, seed=None, dtype=tf.float32)
@@ -213,14 +230,14 @@ class DAE_TFP_Model(object):
             fully2 = tf.contrib.layers.fully_connected(fully1,
                                                        self.__label_shape[1] *
                                                        self.__label_shape[2],
-                                                       activation_fn=tf.nn.relu,
+                                                       activation_fn=self.__leakyrelu,
                                                        weights_initializer=kernel_init,
-                                                       biases_initializer=bias_init, reuse=scope.reuse)
+                                                       biases_initializer=bias_init, reuse=scope.reuse,scope=scope)
             print("fully2:", fully2)
 
         with tf.variable_scope('reshape') as scope:
             reshaped = tf.reshape(
-                fully2, [-1, 18, 4])
+                fully2, [-1, 56, 4])
             print("reshape:", reshaped)
 
         return reshaped
@@ -274,7 +291,7 @@ class DAE_TFP_Model(object):
             # train_mode : 'trainA_trainB' or 'noA_trainB'
             train_op = self.__train_all_op
         summary, each_vd_losses, losses, global_steps, _ = sess.run(
-            [self.__train_loss_summary, self.__each_vd_losses, self.__losses, self.__global_step, train_op], feed_dict=feed_dict)
+            [self.__train_loss_summary, self.__each_vd_losses_train, self.__losses_train, self.__global_step, train_op], feed_dict=feed_dict)
         self.__summary_writer.add_summary(
             summary, global_step=global_steps)
         return each_vd_losses, losses, global_steps
@@ -291,7 +308,7 @@ class DAE_TFP_Model(object):
         feed_dict = {self.__X_ph: inputs,
                      self.__Y_ph: labels}
         each_vd_losses, losses = sess.run(
-            [self.__each_vd_losses, self.__losses], feed_dict=feed_dict)
+            [self.__each_vd_losses_test, self.__losses_test], feed_dict=feed_dict)
         return each_vd_losses, losses
 
     def predict(self, sess, inputs):
@@ -301,7 +318,7 @@ class DAE_TFP_Model(object):
             prediction : float, shape=[None, target_vds, intervals]
         """
         feed_dict = {self.__X_ph: inputs}
-        prediction = sess.run(self.__logits, feed_dict=feed_dict)
+        prediction = sess.run(self.__logits_test, feed_dict=feed_dict)
         return prediction
 
 

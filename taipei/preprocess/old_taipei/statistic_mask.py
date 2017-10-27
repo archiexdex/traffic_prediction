@@ -47,23 +47,27 @@ def main():
     train_vd_list = {"train":[], "label":[]}
     k = 0
     for vd in target_vd_list["train"]:
-        for grp in vd_grp_lane_list[vd]:
+        # for grp in vd_grp_lane_list[vd]:
             
             # Show train VD order
-            train_vd_list["train"].append(vd+"_"+grp)
-            if is_log == 1:
-                print(k, vd, grp)
-                k += 1
-            
-            vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
-            mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
-            outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
+            # train_vd_list["train"].append(vd+"_"+grp)
+            train_vd_list["train"].append(vd)
+            # if is_log == 1:
+            #     print(k, vd, grp)
+            #     k += 1
+
+            vd_filenme       = DATA_PATH + "fix_data/"     + vd + ".npy"
+            mask_filename    = DATA_PATH + "mask_data/"    + vd + ".npy"
+            outlier_filename = DATA_PATH + "mask_outlier/" + vd + ".npy"
+            # vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
+            # mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
+            # outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
 
             vd_file      = np.load(vd_filenme)
             mask_file    = np.load(mask_filename)
             outlier_file = np.load(outlier_filename)
 
-            vd_file[:,0] = (vd_file[:,0] - START_TIME) / 300
+            vd_file[:,0] = (vd_file[:,0] - START_TIME) / 60
             vd_file[:,0] %= 1440
 
             train_data.append(vd_file)

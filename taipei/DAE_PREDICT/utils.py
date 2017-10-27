@@ -16,7 +16,7 @@ class Norm(object):
     def __init__(self):
         self.key = ["time", "density", "flow", "speed", "week"]
         self.norm = {}
-        with open("/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/norm.json", 'r') as fp:
+        with open("/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/norm.json", 'r') as fp:
             self.norm = json.load(fp)
 
     def data_normalization(self, data):

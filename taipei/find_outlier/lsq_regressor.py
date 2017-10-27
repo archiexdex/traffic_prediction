@@ -27,7 +27,7 @@ from scipy.optimize import least_squares
 
 # FLAGs
 DRAW_VD_MODE = False
-OUTLIERS_THRSHOLD = 2
+OUTLIERS_THRSHOLD = 1.5
 
 is_old = True
 

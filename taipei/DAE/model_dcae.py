@@ -101,6 +101,7 @@ class DCAEModel(object):
             return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
         print("corrupt_data:", corrupt_data)
         shapes_list = []
+        lastlayer_dict = {}
         # encoder
         with tf.variable_scope("DAE") as out_scope:
             current_input = corrupt_data
@@ -123,6 +124,7 @@ class DCAEModel(object):
                     output = lrelu(
                         tf.add(tf.nn.conv2d(
                             input=current_input, filter=W, strides=[1, stide, stide, 1], padding='SAME'), b))
+                    lastlayer_dict[output.name] = output
                     current_input = output
                     print(scope.name, output)
 
@@ -154,6 +156,10 @@ class DCAEModel(object):
                     output = lrelu(
                         tf.add(tf.nn.conv2d_transpose(
                             value=current_input, filter=W, output_shape=[layer_shape[0], layer_shape[1], layer_shape[2], out_filter_amount], strides=[1, stide, stide, 1], padding='SAME'), b))
+                    if layer_id != len(shapes_list) - 1:
+                        key = 'DAE/conv' + str(len(lastlayer_dict) - 2 - layer_id) + '/sub:0'
+                        last_layer = lastlayer_dict[key]
+                        output = tf.concat([output, last_layer], -1)
                     current_input = output
                     print(scope.name, output)
 

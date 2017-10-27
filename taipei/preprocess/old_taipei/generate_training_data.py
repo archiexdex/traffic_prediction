@@ -19,11 +19,28 @@ import matplotlib.pyplot as plt
 
 
 is_log = 0
-data_completion = '_train_50_label_100'
+data_completion = '_train_100_train_100'
 
 DATA_PATH = "/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/"
 TOLERANCE = 0
 START_TIME = time.mktime( datetime.datetime.strptime("2015-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").timetuple() )
+
+def data_normalization(data, file_name):
+    # normalize each dims [t, d, f, s, w]
+    key = ["time", "density", "flow", "speed", "week"]
+    norm = {}
+    with open(DATA_PATH + "norm.json", 'r') as fp:
+        norm = json.load(fp)
+    norm[file_name] = {}
+    for i in range(5):
+        temp_mean = np.mean(data[:, :, i])
+        temp_std = np.std(data[:, :, i])
+        data[:, :, i] = (data[:, :, i] - temp_mean) / temp_std
+        print(i, temp_mean, temp_std)
+        norm[file_name][key[i]] = [temp_mean, temp_std]
+    with open(DATA_PATH + "norm.json", 'w') as fp:
+        json.dump(norm, fp)
+    return data
 
 def get_day_minute(timestamp):
     H = int( datetime.datetime.fromtimestamp(timestamp).timetuple()[3] )
@@ -48,18 +65,22 @@ def main():
         vd_grp_lane_list = json.load(fp)
 
     # gather train data into one tensor according to vd_grp_lane_list
+    print("Get train dara...")
     train_data = []
     train_mask = []
-    for vd in target_vd_list["train"]:
-        for grp in vd_grp_lane_list[vd]:
+    for vd in target_vd_list["train0"]:
+        # for grp in vd_grp_lane_list[vd]:
             
             # Show train VD order
-            if is_log == 1:
-                print(k, vd, grp)
-                k += 1
-            vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
-            mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
-            outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
+            # if is_log == 1:
+            #     print(k, vd, grp)
+            #     k += 1
+            vd_filenme       = DATA_PATH + "fix_data/"     + vd + ".npy"
+            mask_filename    = DATA_PATH + "mask_data/"    + vd + ".npy"
+            outlier_filename = DATA_PATH + "mask_outlier/" + vd + ".npy"
+            # vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
+            # mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
+            # outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
 
             vd_file      = np.load(vd_filenme)
             mask_file    = np.load(mask_filename)
@@ -74,19 +95,23 @@ def main():
             train_mask.append(mask_file)
 
     # gather label data into one tensor according to vd_grp_lane_list
+    print("Get label dara...")
     label_data = []
     label_mask = []
     k = 0
-    for vd in target_vd_list["label"]:
-        for grp in vd_grp_lane_list[vd]:
+    for vd in target_vd_list["train0"]:
+        # for grp in vd_grp_lane_list[vd]:
             
             # Show label VD order
             if is_log == 1:
                 print(k, vd, grp)
                 k += 1
-            vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
-            mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
-            outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
+            vd_filenme       = DATA_PATH + "fix_data/"     + vd + ".npy"
+            mask_filename    = DATA_PATH + "mask_data/"    + vd + ".npy"
+            outlier_filename = DATA_PATH + "mask_outlier/" + vd + ".npy"
+            # vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
+            # mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
+            # outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
 
             vd_file      = np.load(vd_filenme)
             mask_file    = np.load(mask_filename)
@@ -134,7 +159,7 @@ def main():
     print(tmp_train.shape)
     print(tmp_label.shape)
     data_normalization(tmp_train, "train")
-    data_normalization(tmp_label, "valid")
+    # data_normalization(train_data, "train")
     
     # Build train data and label data
     input_organized_data = []
@@ -163,8 +188,8 @@ def main():
         # for _, item in enumerate(label_tmp):
         #     if len(item) > 0:
         #         label_size += 1
-        # if train_size <= 0 and label_size <= 0:
-        if len(train) <= ( train_mask.shape[0] * 12 * 0.5 ) and len(label) <= 0:
+        if len(train) <= 0 and len(label) <= 0:
+        # if len(train) <= ( train_mask.shape[0] * 12 * 0.5 ) and len(label) <= 0:
         # if len(label) <= 0:
             input_organized_data.append(train_data[:, i:i + 12, :])
             label_organized_data.append(label_data[:, i + 12: i+12 + 4, :])

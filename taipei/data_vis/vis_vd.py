@@ -27,7 +27,7 @@ FOLDER_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/data_vis/NEW_VDS
 
 DRAW_ONLINE_FLAG = False
 
-VD_NAMES = ['VMQGX40_1']
+VD_NAMES = ["VQGFY00_0"]
 START_DAYS = [1]
 DURATION = 600
 
@@ -139,7 +139,7 @@ def main():
     for start_day in START_DAYS:
         for vd_name in VD_NAMES:
             plot_duration(vd_name, start_day, DURATION, is_perday=True)
-            plot_duration(vd_name, start_day, DURATION, is_perday=False)
+            # plot_duration(vd_name, start_day, DURATION, is_perday=False)
             print("Finished:: VD_NAME: %s, START_DAY: %d" %
                   (vd_name, start_day))
 

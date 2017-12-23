@@ -52,7 +52,7 @@ def main():
     main
     """
 
-    traget_vd_filename   = DATA_PATH + "target_vd_list.json"
+    traget_vd_filename   = "target_vd_list.json"
     vd_grp_lane_filename = DATA_PATH + "vd_grp_lane.json"
 
     # load vd list and load vd group lane 
@@ -68,9 +68,10 @@ def main():
     print("Get train dara...")
     train_data = []
     train_mask = []
-    for vd in target_vd_list["train0"]:
+    vd_list = {"total":[]}
+    for vd in target_vd_list["total"]:
         # for grp in vd_grp_lane_list[vd]:
-            
+            # print(vd)
             # Show train VD order
             # if is_log == 1:
             #     print(k, vd, grp)
@@ -82,86 +83,93 @@ def main():
             # mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
             # outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
 
-            vd_file      = np.load(vd_filenme)
-            mask_file    = np.load(mask_filename)
-            outlier_file = np.load(outlier_filename)
-
+            try:
+                vd_file      = np.load(vd_filenme)
+                mask_file    = np.load(mask_filename)
+                outlier_file = np.load(outlier_filename)
+            except:
+                continue
+            vd_list["total"].append(vd)
             # change time form
-            for idx in range(vd_file.shape[0]):
-                vd_file[idx][0] = get_day_minute(vd_file[idx][0])
+            # for idx in range(vd_file.shape[0]):
+            #     vd_file[idx][0] = get_day_minute(vd_file[idx][0])
 
             train_data.append(vd_file)
             mask_file |= outlier_file
             train_mask.append(mask_file)
-
+    
     # gather label data into one tensor according to vd_grp_lane_list
-    print("Get label dara...")
-    label_data = []
-    label_mask = []
-    k = 0
-    for vd in target_vd_list["train0"]:
-        # for grp in vd_grp_lane_list[vd]:
+    # print("Get label dara...")
+    # label_data = []
+    # label_mask = []
+    # k = 0
+    # for vd in target_vd_list["total"]:
+    #     for grp in vd_grp_lane_list[vd]:
             
-            # Show label VD order
-            if is_log == 1:
-                print(k, vd, grp)
-                k += 1
-            vd_filenme       = DATA_PATH + "fix_data/"     + vd + ".npy"
-            mask_filename    = DATA_PATH + "mask_data/"    + vd + ".npy"
-            outlier_filename = DATA_PATH + "mask_outlier/" + vd + ".npy"
-            # vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
-            # mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
-            # outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
+    #         # Show label VD order
+    #         if is_log == 1:
+    #             print(k, vd, grp)
+    #             k += 1
+    #         # vd_filenme       = DATA_PATH + "fix_data/"     + vd + ".npy"
+    #         # mask_filename    = DATA_PATH + "mask_data/"    + vd + ".npy"
+    #         # outlier_filename = DATA_PATH + "mask_outlier/" + vd + ".npy"
+    #         vd_filenme       = DATA_PATH + "fix_data/"     + vd + "_" + grp + ".npy"
+    #         mask_filename    = DATA_PATH + "mask_data/"    + vd + "_" + grp + ".npy"
+    #         outlier_filename = DATA_PATH + "mask_outlier/" + vd + "_" + grp + ".npy"
 
-            vd_file      = np.load(vd_filenme)
-            mask_file    = np.load(mask_filename)
-            outlier_file = np.load(outlier_filename)
-
-            # change time form
-            for idx in range(vd_file.shape[0]):
-                vd_file[idx][0] = get_day_minute(vd_file[idx][0])
+    #         try:
+    #             vd_file      = np.load(vd_filenme)
+    #             mask_file    = np.load(mask_filename)
+    #             outlier_file = np.load(outlier_filename)
+    #         except:
+    #             continue
+    #         # change time form
+    #         # for idx in range(vd_file.shape[0]):
+    #         #     vd_file[idx][0] = get_day_minute(vd_file[idx][0])
             
-            label_data.append(vd_file)
-            mask_file |= outlier_file
-            label_mask.append(mask_file)
-    
+    #         label_data.append(vd_file)
+    #         mask_file |= outlier_file
+    #         label_mask.append(mask_file)
+    with open("target_vd_list.json", 'w') as fp:
+        json.dump(vd_list, fp)
     # concatenate data and mask
-    for idx, (item1, item2) in enumerate(zip(train_data, train_mask)):
-        for jdx, (jtem1, jtem2) in enumerate(zip(item1, item2)):
-            jtem1[5] = jtem2
+    # for idx, (item1, item2) in enumerate(zip(train_data, train_mask)):
+    #     for jdx, (jtem1, jtem2) in enumerate(zip(item1, item2)):
+    #         jtem1[5] = jtem2
     
-    for idx, (item1, item2) in enumerate(zip(label_data, label_mask)):
-        for jdx, (jtem1, jtem2) in enumerate(zip(item1, item2)):
-            jtem1[5] = jtem2
+    # for idx, (item1, item2) in enumerate(zip(label_data, label_mask)):
+    #     for jdx, (jtem1, jtem2) in enumerate(zip(item1, item2)):
+    #         jtem1[5] = jtem2
 
     train_data = np.array(train_data)
     train_mask = np.array(train_mask)
-    label_data = np.array(label_data)
-    label_mask = np.array(label_mask)
+    # label_data = np.array(label_data)
+    # label_mask = np.array(label_mask)
 
     print(train_data.shape)
     print(train_mask.shape)
-    print(label_data.shape)
-    print(label_mask.shape)
+    # print(label_data.shape)
+    # print(label_mask.shape)
 
     # Calculate mean and variable
-    tmp_train = []
-    for idx in range(train_data.shape[1]):
-        if len( np.argwhere(train_mask[:, idx] == 1) ) == 0 :
-            tmp_train.append(train_data[:, idx, :])
-    tmp_train = np.array(tmp_train)
-    tmp_label = []
-    for idx in range(label_data.shape[1]):
-        if len( np.argwhere(label_mask[:, idx] == 1) ) == 0 :
-            tmp_label.append(label_data[:, idx, :])
-    tmp_label = np.array(tmp_label)
+    # tmp_train = []
+    # for idx in range(train_data.shape[1]):
+    #     if len( np.argwhere(train_mask[:, idx] == 1) ) == 0 :
+    #         tmp_train.append(train_data[:, idx, :])
+    # tmp_train = np.array(tmp_train)
+    # tmp_label = []
+    # for idx in range(label_data.shape[1]):
+    #     if len( np.argwhere(label_mask[:, idx] == 1) ) == 0 :
+    #         tmp_label.append(label_data[:, idx, :])
+    # tmp_label = np.array(tmp_label)
     
-    print(tmp_train.shape)
-    print(tmp_label.shape)
-    data_normalization(tmp_train, "train")
+    # print(tmp_train.shape)
+    # print(tmp_label.shape)
+    # data_normalization(tmp_train, "train")
     # data_normalization(train_data, "train")
     
     # Build train data and label data
+    print("Build train data and label data")
     input_organized_data = []
     label_organized_data = []
     label_mask_organized_data = []
@@ -169,7 +177,7 @@ def main():
     for i in range(train_data.shape[1] - 12 - 4):
 
         train = np.argwhere(train_mask[:, i:i + 12] == 1)
-        label = np.argwhere(label_mask[:, i + 12:i + 12 + 4] == 1)
+        # label = np.argwhere(label_mask[:, i + 12:i + 12 + 4] == 1)
         # train_tmp = [[],[],[],[],[],[],
         #             [],[],[],[],[],[],]
         # for _, item in enumerate(train):
@@ -188,13 +196,15 @@ def main():
         # for _, item in enumerate(label_tmp):
         #     if len(item) > 0:
         #         label_size += 1
-        if len(train) <= 0 and len(label) <= 0:
-        # if len(train) <= ( train_mask.shape[0] * 12 * 0.5 ) and len(label) <= 0:
-        # if len(label) <= 0:
+        # if len(train) <= 0 and len(label) <= 0:
+        # if len(train) <= ( train_mask.shape[0] * 12 * 0.8 ) and len(label) <= 0:
+        # if len(train) <= 0:
+        if len(train) <= ( train_mask.shape[0] * 12 * 0.1 ):
             input_organized_data.append(train_data[:, i:i + 12, :])
-            label_organized_data.append(label_data[:, i + 12: i+12 + 4, :])
+            break
+            # label_organized_data.append(label_data[:, i + 12: i+12 + 4, :])
             
-            vd_time_list[int(train_data[0, i, :][0])] += 1
+            # vd_time_list[int(train_data[0, i, :][0])] += 1
             
 
     input_organized_data = np.array(input_organized_data)
@@ -208,8 +218,8 @@ def main():
     
     del train_data
     del train_mask
-    del label_data
-    del label_mask
+    # del label_data
+    # del label_mask
 
     # split data into 9:1 as num_train_data:num_test_data
     train_data, test_data = np.split(

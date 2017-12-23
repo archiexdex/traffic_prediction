@@ -5,6 +5,7 @@ mile_base/
 training_data/
 *.npy
 *.json
+*.csv
 # log
 log/
 *backlog*/

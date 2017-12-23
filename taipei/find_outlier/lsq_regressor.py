@@ -125,6 +125,7 @@ def draw_data(vd_name, density, flow, speed, weights):
     plotly.offline.plot(fig, filename=FOLDER_PATH +
                         'VD: %s.html' % (vd_name))
 
+var_list = {}
 
 def lsq_regressor(raw_data, vd_name, if_vis=False, outlier_mask=None):
     """
@@ -165,7 +166,9 @@ def lsq_regressor(raw_data, vd_name, if_vis=False, outlier_mask=None):
 
     train_data = np.stack([density, speed])
     train_label = flow
-
+    global var_list
+    var_list[vd_name] = np.std(flow)
+    
     # regressor
     def func(W, inputs, labels):
         x = inputs[0]  # density
@@ -226,7 +229,11 @@ def main():
         stddev = np.std(all_losses_np)
         num_outliers = np.sum(all_losses_np > (mean + OUTLIERS_THRSHOLD * stddev)) + \
             np.sum(all_losses_np < (mean - OUTLIERS_THRSHOLD * stddev))
-
+        global var_list
+        # var_list = sorted(var_list, reverse=True, key= lambda x: x[1])
+        # print(var_list)
+        with open("tmp", mode="w") as fp:
+            json.dump(var_list, fp)
         for vd_name in all_losses_dict:
             outlier_mask = np.logical_or(all_losses_dict[vd_name] > (
                 mean + OUTLIERS_THRSHOLD * stddev),  all_losses_dict[vd_name] < (mean - OUTLIERS_THRSHOLD * stddev))

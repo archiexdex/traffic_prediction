@@ -76,7 +76,7 @@ def draw_heatmap(vd_list, vd_gps_dict, missing_dict, outliers_dict, both_dict):
     data_dict["label"]['lat'] = []
     data_dict["label"]['lon'] = []
     data_dict["label"]['vd_name'] = []
-    for vd_name in vd_list['train']:
+    for vd_name in vd_list['total']:
         print(vd_name)
         for group_id in range(5):
             try:

@@ -31,7 +31,7 @@ if IS_NEW_DATA:
     DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/vd_base/5/'
 else:
     DATA_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/'
-VD_GPS_FILE = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/new_raw_data/VD_GPS.npy'
+VD_GPS_FILE_PATH = '/home/xdex/Desktop/traffic_flow_detection/taipei/training_data/old_Taipei_data/vd_base/vd_info.json'
 MISSING_MASK_PATH = os.path.join(DATA_PATH, 'mask_data')
 OUTLIER_MASK_PATH = os.path.join(
     DATA_PATH, 'mask_outlier')
@@ -74,9 +74,9 @@ def draw_heatmap(vd_gps_dict, missing_dict, outliers_dict, both_dict):
                 data_dict['outlier'].append(
                     outliers_dict[vd_name + '_%s' % group_id])
                 data_dict['both'].append(both_dict[vd_name + '_%s' % group_id])
-                data_dict['lat'].append(vd_gps_dict[vd_name][0])
+                data_dict['lat'].append(vd_gps_dict[vd_name]['lat'])
                 data_dict['lon'].append(
-                    vd_gps_dict[vd_name][1] + group_id * 0.0001)
+                    vd_gps_dict[vd_name]['lon'] + group_id * 0.0001)
                 data_dict['vd_name'].append(vd_name + '_%s' % group_id)
             except:
                 print('QQ cannot find vd: %s, grp: %s' % (vd_name, group_id))
@@ -282,7 +282,8 @@ def main():
         # step 4. visulize above three tag with heat map
 
         # step 1
-        vd_gps_dict = np.load(VD_GPS_FILE).item()
+        with open(VD_GPS_FILE_PATH) as fp:
+            vd_gps_dict = json.load(fp)
 
         # step 2, 3
         missing_statistics = {}
